@@ -35,7 +35,23 @@ npm run dist:win   # build a Windows installer (run on Windows)
 ```
 
 The GitHub Actions workflow in `.github/workflows/build.yml` builds the signed Mac installer on every `v*` tag,
-or on demand from the Actions tab.
+or on demand from the Actions tab. It does not build Windows; build that yourself as below.
+
+**Building for Windows:** run these on a Windows PC with [Node.js 22](https://nodejs.org) and Git installed:
+
+```powershell
+git clone https://github.com/EchelonOne-io/iorg.git
+cd iorg
+npm ci
+npm test
+npm run dist:win
+```
+
+The installer lands in `dist\Home Screen Organizer Setup <version>.exe`. It is unsigned, so on first run
+Windows SmartScreen shows a warning: click **More info → Run anyway**. To sign it, get a Windows
+code-signing certificate (.pfx) and set `CSC_LINK` (path to the .pfx) and `CSC_KEY_PASSWORD` before
+`npm run dist:win`. The Apple certificate does not work for Windows. To use the app, the PC also needs the
+**Apple Devices** app from the Microsoft Store, which provides the USB connection to the iPhone or iPad.
 
 **Signing:** an unsigned Mac app needs right-click → Open on first launch. To sign and notarize it so it
 opens normally for everyone, use a **Developer ID Application** certificate (from developer.apple.com →
