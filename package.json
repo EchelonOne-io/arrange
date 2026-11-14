@@ -1,8 +1,8 @@
 {
-  "name": "ipad-organizer",
-  "productName": "iPad Organizer",
+  "name": "home-screen-organizer",
+  "productName": "Home Screen Organizer",
   "version": "1.0.0",
-  "description": "Rearrange your iPad Home Screen from your computer over USB.",
+  "description": "Rearrange your iPhone or iPad Home Screen from your computer over USB.",
   "main": "src/main.js",
   "license": "MIT",
   "private": true,
@@ -21,8 +21,8 @@
     "electron-builder": "26.18.0"
   },
   "build": {
-    "appId": "app.ipadorganizer.desktop",
-    "productName": "iPad Organizer",
+    "appId": "app.homescreenorganizer.desktop",
+    "productName": "Home Screen Organizer",
     "files": ["src/**", "renderer/**", "package.json"],
     "directories": { "buildResources": "build", "output": "dist" },
     "mac": {
@@ -30,7 +30,7 @@
       "target": [{ "target": "dmg", "arch": ["universal"] }],
       "icon": "build/icon.png"
     },
-    "dmg": { "title": "iPad Organizer" },
+    "dmg": { "title": "Home Screen Organizer" },
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "build/icon.png"

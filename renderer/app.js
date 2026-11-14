@@ -1,4 +1,6 @@
-const PAGE_CELLS = 30;            // 6 x 5 icons per iPad page
+// Home Screen shape of the open device; the backend sends the real one on load.
+const DEFAULT_PROFILE = {kind:'ipad', label:'iPad', os:'iPadOS', cols:6, rows:5, cells:30, dockMax:null};
+let profile = DEFAULT_PROFILE;
 const WIDGET_CELLS = {small:4, medium:8, large:16, extralarge:24};
 const $ = s => document.querySelector(s);
 
@@ -11,6 +13,7 @@ let newId = 0;
 let sortables = [];
 let device = null;
 let dirty = false;
+const NEUTRAL = 'iPhone or iPad';
 
 // ---------- helpers ----------
 async function api(route, body){
@@ -43,21 +46,23 @@ function showWelcome(){ if(welcomeHTML){ $('#board').innerHTML = welcomeHTML; $(
 async function scan(quiet){
   if(S) return;
   scanning = true;
-  if(!quiet) $('#devlist').innerHTML = '<p class="hint" style="text-align:center">Looking for your iPad…</p>';
+  if(!quiet) $('#devlist').innerHTML = `<p class="hint" style="text-align:center">Looking for your ${NEUTRAL}…</p>`;
   try{
     const r = await api('devices');
     const list = r.devices || [];
     if(r.error) { $('#devlist').innerHTML = `<p class="hint" style="text-align:center">${esc(r.error)}</p>`; return; }
-    if(!list.length){ $('#devlist').innerHTML = '<p class="hint" style="text-align:center">No iPad found yet.</p>'; return; }
+    if(!list.length){ $('#devlist').innerHTML = `<p class="hint" style="text-align:center">No ${NEUTRAL} found yet.</p>`; return; }
     $('#devlist').innerHTML = '';
     for(const d of list){
       const el = document.createElement('div'); el.className = 'dev';
-      el.innerHTML = `<div class="meta"><b>${esc(d.name || 'Apple device')}</b><div class="hint" style="margin:0">${d.ios ? 'iPadOS ' + esc(d.ios) : ''} · ${esc(d.connection||'')}</div>${d.error?`<div class="err">${esc(d.error)}</div>`:''}</div>`;
+      const p = d.profile || DEFAULT_PROFILE;
+      const sub = [p.label, d.ios ? `${p.os} ${d.ios}` : ''].filter(Boolean).join(' · ');
+      el.innerHTML = `<div class="dev-kind ${p.kind}" aria-hidden="true"></div><div class="meta"><b>${esc(d.name || 'Apple device')}</b><div class="hint" style="margin:0">${esc(sub)}</div>${d.error?`<div class="err">${esc(d.error)}</div>`:''}</div>`;
       const b = document.createElement('button'); b.className='btn primary'; b.textContent='Open layout';
-      b.onclick = () => load(d.udid === 'demo' ? null : d.udid);
+      b.onclick = () => load(d.udid);
       el.appendChild(b); $('#devlist').appendChild(el);
     }
-    if(list.length === 1 && !list[0].error && !autoOpened){ autoOpened = true; load(list[0].udid === 'demo' ? null : list[0].udid); }
+    if(list.length === 1 && !list[0].error && !autoOpened){ autoOpened = true; load(list[0].udid); }
   }catch(e){ $('#devlist').innerHTML = `<p class="hint" style="text-align:center">${esc(e.message)}</p>`; }
   finally{ scanning = false; }
 }
@@ -66,15 +71,35 @@ async function load(udid, quiet){
   try{
     const r = await api('load', {udid});
     device = r.device;
+    applyProfile(device.profile || DEFAULT_PROFILE);
     nodes = {}; openFolder = null; selected.clear(); undoStack = []; redoStack = []; dirty = false;
     S = { dock: ingest(r.tree.dock), pages: r.tree.pages.map(p => ingest(p)), shelf: [], hidden: ingest(r.tree.library || []) };
     if(!S.pages.length) S.pages.push([]);
     $('#dot').classList.add('on');
-    $('#devname').textContent = `${device.name || 'iPad'}${device.ios ? ' · iPadOS ' + device.ios : ''}`;
+    $('#devname').textContent = `${device.name || profile.label}${device.ios ? ` · ${profile.os} ${device.ios}` : ''}`;
     render();
-    if(!quiet) toast('Layout loaded. A backup copy was saved in Documents › iPad Organizer Backups.', 'ok');
+    if(!quiet) toast('Layout loaded. A backup copy was saved in Documents › Home Screen Organizer Backups.', 'ok');
   }catch(e){ toast(e.message, 'err', 10000); }
 }
+
+// ---------- device profile ----------
+/** Size the grids and word the screen for an iPhone or an iPad. */
+function applyProfile(p){
+  profile = p;
+  const root = document.documentElement;
+  root.dataset.device = p.kind;
+  root.style.setProperty('--cols', p.cols);
+  $('#apply').textContent = `Apply to ${p.label}`;
+  $('#reload').title = `Throw away unapplied changes and read the layout from the ${p.label} again`;
+  $('#tipsText').innerHTML = `Drag to move. Click icons to select several, then make a folder or move them together. Double-click a folder to open it. Nothing changes on the ${esc(p.label)} until you press <b>Apply to ${esc(p.label)}</b>, and a backup is saved first.`;
+}
+function resetProfile(){
+  applyProfile(DEFAULT_PROFILE);
+  delete document.documentElement.dataset.device;
+  $('#apply').textContent = 'Apply';
+}
+const dockLabel = () => profile.dockMax ? `Dock · ${S ? S.dock.length : 0} of ${profile.dockMax}` : 'Dock';
+const dockFull = () => !!profile.dockMax && S.dock.length >= profile.dockMax;
 
 // ---------- rendering ----------
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -96,10 +121,11 @@ function render(){
   sortables.forEach(s => s.destroy()); sortables = [];
   $('#side').hidden = false;
   const board = $('#board');
-  let html = `<div class="dock"><div class="label">Dock</div><div class="grid" data-c="dock">${S.dock.map(tileHTML).join('')}</div></div><div class="pages">`;
+  let html = `<div class="dock"><div class="label" id="dockLabel">${dockLabel()}</div><div class="grid" data-c="dock">${S.dock.map(tileHTML).join('')}</div></div><div class="pages">`;
   S.pages.forEach((p, i) => {
     const used = p.reduce((a,u) => a + cells(u), 0);
-    html += `<section class="page"><div class="page-head"><b>Page ${i+1}</b><span class="${used>PAGE_CELLS?'full':''}">${p.length} item${p.length===1?'':'s'}${used>PAGE_CELLS?' · more than fits, iPadOS will spill the rest to the next page':''}</span><span class="spacer"></span>
+    const over = used > profile.cells;
+    html += `<section class="page"><div class="page-head"><b>Page ${i+1}</b><span class="${over?'full':''}">${p.length} item${p.length===1?'':'s'}${over?` · more than fits, ${profile.os} will spill the rest to the next page`:''}</span><span class="spacer"></span>
       <button class="btn small" data-act="sortpage" data-i="${i}">A–Z</button>
       ${p.length===0 && S.pages.length>1 ? `<button class="btn small" data-act="delpage" data-i="${i}">Remove</button>`:''}</div>
       <div class="grid" data-c="page:${i}">${p.map(tileHTML).join('')}</div></section>`;
@@ -129,7 +155,7 @@ function render(){
   document.querySelectorAll('[data-c]').forEach(el => {
     const c = el.dataset.c;
     sortables.push(new Sortable(el, {
-      group: { name:'icons', put: (to, from, dragEl) => canPut(c, dragEl.dataset.kind) },
+      group: { name:'icons', put: (to, from, dragEl) => canPut(c, dragEl.dataset.kind, from.el === to.el) },
       animation: 140, ghostClass:'sortable-ghost', forceFallback:true, fallbackTolerance:3,
       onStart: () => pushUndo(),
       onEnd: () => { syncFromDOM(); setTimeout(render, 0); },
@@ -138,10 +164,10 @@ function render(){
   applySearch();
   updateButtons();
 }
-function canPut(c, kind){
+function canPut(c, kind, sameList){
   if(c.startsWith('folder:')) return kind === 'app' || kind === 'other';   // no folders or widgets inside folders
   if(c === 'hidden') return kind === 'app';
-  if(c === 'dock') return kind !== 'widget';
+  if(c === 'dock') return kind !== 'widget' && (sameList || !dockFull());
   return true;
 }
 function syncFromDOM(){
@@ -154,7 +180,7 @@ function syncFromDOM(){
     else if(c.startsWith('page:')) S.pages[+c.split(':')[1]] = ids;
     else if(c.startsWith('folder:')){ const [,uid,i] = c.split(':'); nodes[uid].pages[+i] = ids; }
   });
-  // a folder that became empty disappears (iPadOS does the same)
+  // a folder that became empty disappears (iOS and iPadOS do the same)
   for(const [uid, n] of Object.entries(nodes)){
     if(n.kind === 'folder'){
       n.pages = n.pages.filter((p,i) => p.length || (i===0));
@@ -206,7 +232,7 @@ function sortAll(){
   const pages = S.pages.map(p => p.filter(u => nodes[u].kind === 'widget'));
   let i = 0;
   for(const u of items){
-    while(i < pages.length && pages[i].reduce((a,x)=>a+cells(x),0) + 1 > PAGE_CELLS) i++;
+    while(i < pages.length && pages[i].reduce((a,x)=>a+cells(x),0) + 1 > profile.cells) i++;
     if(i >= pages.length) pages.push([]);
     pages[i].push(u);
   }
@@ -219,7 +245,14 @@ function moveSelected(target){
   ids.forEach(removeEverywhere);
   if(target === 'shelf') S.shelf.push(...ids);
   else if(target === 'hidden') S.hidden.push(...ids);
-  else if(target === 'dock') { S.dock.push(...ids.filter(u => nodes[u].kind!=='widget')); S.shelf.push(...ids.filter(u => nodes[u].kind==='widget')); }
+  else if(target === 'dock') {
+    const fit = ids.filter(u => nodes[u].kind!=='widget');
+    const room = profile.dockMax ? Math.max(0, profile.dockMax - S.dock.length) : fit.length;
+    S.dock.push(...fit.slice(0, room));
+    const left = ids.filter(u => !S.dock.includes(u));
+    S.shelf.push(...left);
+    if(fit.length > room) toast(`The ${profile.label} Dock holds ${profile.dockMax} items. The rest went to the shelf.`, 'err');
+  }
   else if(target === 'new') S.pages.push(ids);
   else S.pages[+target].push(...ids);
   selected.clear(); render();
@@ -251,24 +284,24 @@ function buildTree(){
 }
 async function apply(){
   const removing = S.hidden.filter(u => !u.startsWith('lib:')).length;
-  if(removing && !confirm(`${removing} app(s) will be removed from the Home Screen. They stay installed and you can find them in the App Library. Continue?`)) return;
+  if(removing && !confirm(`${removing} app(s) will come off your pages and go into the "App Library" folders on the last page. Continue?`)) return;
   if(S.shelf.length && !confirm(`${S.shelf.length} item(s) are still on the shelf. They will go onto a new last page. Continue?`)) return;
   const btn = $('#apply'); btn.disabled = true; btn.textContent = 'Applying…';
   try{
     const r = await api('apply', {tree: buildTree()});
     toast(r.message + (r.ok ? '' : ` (${r.matched} of ${r.total} items landed exactly where you put them.)`), r.ok ? 'ok' : 'err', 12000);
     dirty = false;
-    setTimeout(() => load(device?.udid === 'demo' ? null : device?.udid, true), r.ok ? 300 : 600);
+    setTimeout(() => load(device?.udid, true), r.ok ? 300 : 600);
   }catch(e){ toast(e.message, 'err', 12000); }
-  finally{ btn.textContent = 'Apply to iPad'; btn.disabled = false; }
+  finally{ btn.textContent = `Apply to ${profile.label}`; btn.disabled = false; }
 }
 async function showBackups(){
   const r = await api('backups');
   $('#bkfolder').textContent = `Saved in ${r.folder}`;
   $('#bklist').innerHTML = (r.backups||[]).map(b => `<div class="bk"><span class="mono">${esc(b.file)}</span><button class="btn small" data-file="${esc(b.file)}">Restore</button></div>`).join('') || '<p class="hint">No backups yet.</p>';
   $('#bklist').querySelectorAll('button').forEach(b => b.onclick = async () => {
-    if(!confirm('Put this saved layout back on the iPad? Your current layout is backed up first.')) return;
-    try{ await api('restore', {file: b.dataset.file}); bkdlg.close(); toast('Restored. Reloading…', 'ok'); setTimeout(() => load(device?.udid === 'demo' ? null : device?.udid), 1200); }
+    if(!confirm(`Put this saved layout back on the ${device ? profile.label : NEUTRAL}? Your current layout is backed up first.`)) return;
+    try{ await api('restore', {file: b.dataset.file}); bkdlg.close(); toast('Restored. Reloading…', 'ok'); setTimeout(() => load(device?.udid), 1200); }
     catch(e){ toast(e.message, 'err', 10000); }
   });
   bkdlg.showModal();
@@ -303,19 +336,19 @@ $('#undo').onclick = () => { if(!undoStack.length) return; redoStack.push(snapsh
 $('#redo').onclick = () => { if(!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); };
 $('#sortall').onclick = sortAll;
 $('#addpage').onclick = () => { pushUndo(); S.pages.push([]); render(); window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'}); };
-$('#reload').onclick = () => { if(dirty && !confirm('Discard your unapplied changes and reload from the iPad?')) return; S ? load(device?.udid === 'demo' ? null : device?.udid) : scan(); };
+$('#reload').onclick = () => { if(dirty && !confirm(`Discard your unapplied changes and reload from the ${profile.label}?`)) return; S ? load(device?.udid) : scan(); };
 function bindWelcome(){
   $('#rescan').onclick = () => scan();
   $('#trydemo').onclick = async () => { await api('demo', {on:true}); autoOpened = false; $('#leavedemo').hidden = false; scan(); };
   $('#trusthint').textContent = window.organizer.platform === 'win32'
-    ? 'First time? Install the Apple Devices app from the Microsoft Store, plug in the iPad, and tap Trust on it.'
-    : 'First time on this Mac? Plug in the iPad, open Finder, click the iPad in the sidebar and choose Trust, then tap Trust on the iPad.';
+    ? `First time? Install the Apple Devices app from the Microsoft Store, plug in the ${NEUTRAL}, and tap Trust on it.`
+    : `First time on this Mac? Plug in the ${NEUTRAL}, open Finder, click it in the sidebar and choose Trust, then tap Trust on the device.`;
 }
 welcomeHTML = $('#board').innerHTML;
 bindWelcome();
 $('#leavedemo').onclick = async () => {
   if(dirty && !confirm('Leave the sample? Your changes to it will be lost.')) return;
-  await api('demo', {on:false}); $('#leavedemo').hidden = true; S = null; autoOpened = false; showWelcome(); scan();
+  await api('demo', {on:false}); $('#leavedemo').hidden = true; S = null; device = null; autoOpened = false; resetProfile(); showWelcome(); scan();
 };
 $('#bkshow').onclick = () => api('showBackups');
 $('#bkclose').onclick = () => bkdlg.close();
@@ -341,5 +374,6 @@ $('#folderUnpack').onclick = () => { pushUndo(); const f = nodes[openFolder]; S.
 $('#folderClose').onclick = () => { openFolder = null; syncFromDOM(); render(); };
 window.addEventListener('beforeunload', e => { if(dirty) { e.preventDefault(); e.returnValue = ''; } });
 
+resetProfile();
 if(typeof Sortable === 'undefined') toast('Could not load the drag-and-drop library.', 'err', 20000);
 scan();

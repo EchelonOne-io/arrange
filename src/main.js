@@ -1,10 +1,11 @@
 'use strict';
+const fs = require('fs');
 const path = require('path');
 const { app, BrowserWindow, ipcMain, protocol, shell, Menu } = require('electron');
 const { Backend } = require('./backend');
 
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'ipadicon', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+  { scheme: 'appicon', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
 
 let backend;
@@ -16,7 +17,7 @@ function createWindow() {
     height: 900,
     minWidth: 760,
     minHeight: 560,
-    title: 'iPad Organizer',
+    title: 'Home Screen Organizer',
     backgroundColor: '#f3f4f7',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -34,6 +35,15 @@ function createWindow() {
   win.webContents.on('will-navigate', (e) => e.preventDefault());
 }
 
+/** The app used to be called iPad Organizer; carry its backups over to the new folder name. */
+function moveOldBackups(oldDir, newDir) {
+  try {
+    if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) fs.renameSync(oldDir, newDir);
+  } catch (e) {
+    console.warn('could not move old backups', e && e.message);
+  }
+}
+
 const ROUTES = {
   devices: () => backend.devices(),
   demo: (body) => backend.setDemo(body && body.on),
@@ -45,8 +55,10 @@ const ROUTES = {
 };
 
 app.whenReady().then(() => {
+  const backupDir = path.join(app.getPath('documents'), 'Home Screen Organizer Backups');
+  moveOldBackups(path.join(app.getPath('documents'), 'iPad Organizer Backups'), backupDir);
   backend = new Backend({
-    backupDir: path.join(app.getPath('documents'), 'iPad Organizer Backups'),
+    backupDir,
     iconDir: path.join(app.getPath('userData'), 'icon-cache'),
     demo: process.argv.includes('--demo'),
   });
@@ -59,11 +71,11 @@ app.whenReady().then(() => {
     } catch (e) {
       const { friendly } = require('./device');
       console.error(e);
-      return { error: friendly(e) };
+      return { error: friendly(e, backend.info ? backend.info.profile.label : undefined) };
     }
   });
 
-  protocol.handle('ipadicon', async (request) => {
+  protocol.handle('appicon', async (request) => {
     const id = decodeURIComponent(new URL(request.url).pathname.replace(/^\//, ''));
     const r = await backend.icon(id).catch(() => null);
     if (!r) return new Response('not found', { status: 404 });

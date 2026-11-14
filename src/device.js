@@ -1,28 +1,30 @@
 'use strict';
-// Talks to the iPad over USB through Apple's usbmuxd (built into macOS; on
+// Talks to the iPhone or iPad over USB through Apple's usbmuxd (built into macOS; on
 // Windows it comes with the Apple Devices app or iTunes). The connection and
 // lockdown handshake come from appium-ios-device; the SpringBoard protocol and
 // plist encoding are ours so the layout round-trips without losing precision.
 
 const { utilities, services, Usbmux } = require('appium-ios-device');
 const bplist = require('./bplist');
+const { profileFor } = require('./profile');
 
 const SPRINGBOARD = 'com.apple.springboardservices';
 
-function friendly(err) {
+/** A message a person can act on. `d` names the device: "iPhone", "iPad", or both when unknown. */
+function friendly(err, d = 'iPhone or iPad') {
   const text = String((err && err.message) || err || 'Unknown error');
   if (/pair record/i.test(text)) {
     return process.platform === 'darwin'
-      ? 'This Mac is not trusted by the iPad yet. Unlock the iPad, open Finder, click the iPad in the sidebar, choose Trust, then tap Trust on the iPad.'
-      : 'This computer is not trusted by the iPad yet. Unlock the iPad, open the Apple Devices app, then tap Trust on the iPad.';
+      ? `This Mac is not trusted by the ${d} yet. Unlock the ${d}, open Finder, click the ${d} in the sidebar, choose Trust, then tap Trust on the ${d}.`
+      : `This computer is not trusted by the ${d} yet. Unlock the ${d}, open the Apple Devices app, then tap Trust on the ${d}.`;
   }
   if (/usbmuxd|ECONNREFUSED|ENOENT/i.test(text)) {
     return process.platform === 'win32'
-      ? 'Could not reach Apple\'s USB service. Install the Apple Devices app from the Microsoft Store, then plug the iPad in again.'
-      : 'Could not reach the iPad. Plug it in with a cable and unlock it.';
+      ? `Could not reach Apple's USB service. Install the Apple Devices app from the Microsoft Store, then plug the ${d} in again.`
+      : `Could not reach the ${d}. Plug it in with a cable and unlock it.`;
   }
-  if (/PasswordProtected|locked/i.test(text)) return 'Unlock the iPad, then try again.';
-  if (/Could not find the expected device|InvalidService|BADDEV/i.test(text)) return 'The iPad was disconnected. Plug it back in and unlock it.';
+  if (/PasswordProtected|locked/i.test(text)) return `Unlock the ${d}, then try again.`;
+  if (/Could not find the expected device|InvalidService|BADDEV/i.test(text)) return `The ${d} was disconnected. Plug it back in and unlock it.`;
   return text;
 }
 
@@ -48,9 +50,9 @@ async function listDevices() {
       entry.name = info.DeviceName;
       entry.ios = info.ProductVersion;
       entry.model = info.ProductType;
-      if (!(await hasPairRecord(udid))) entry.error = friendly(new Error('pair record'));
+      if (!(await hasPairRecord(udid))) entry.error = friendly(new Error('pair record'), profileFor(entry.model).label);
     } catch (e) {
-      entry.error = friendly(e);
+      entry.error = friendly(e, entry.model ? profileFor(entry.model).label : undefined);
     }
     out.push(entry);
   }
@@ -75,7 +77,7 @@ class SpringBoard {
     } finally {
       lockdown.close();
     }
-    if (!svc || !svc.Port) throw new Error('The iPad refused the Home Screen service.');
+    if (!svc || !svc.Port) throw new Error('The device refused the Home Screen service.');
     this.socket = svc.EnableServiceSSL
       ? await utilities.connectPortSSL(this.udid, svc.Port)
       : await utilities.connectPort(this.udid, svc.Port);
@@ -85,7 +87,7 @@ class SpringBoard {
       if (this.socket !== sock) return; // an old connection we already replaced
       this.socket = null;
       this.buf = Buffer.alloc(0);
-      this.waiters.splice(0).forEach((w) => w.reject(e || new Error('The iPad was disconnected.')));
+      this.waiters.splice(0).forEach((w) => w.reject(e || new Error('The device was disconnected.')));
     };
     sock.on('error', fail);
     sock.on('close', () => fail());
@@ -121,7 +123,7 @@ class SpringBoard {
         const timer = setTimeout(() => {
           const i = this.waiters.indexOf(w);
           if (i >= 0) this.waiters.splice(i, 1);
-          reject(Object.assign(new Error('The iPad did not answer in time.'), { timeout: true }));
+          reject(Object.assign(new Error('The device did not answer in time.'), { timeout: true }));
         }, timeout);
         const w = {
           resolve: (v) => { clearTimeout(timer); resolve(v); },
@@ -158,7 +160,7 @@ class SpringBoard {
 
 function decode(payload) {
   if (payload.toString('latin1', 0, 6) === 'bplist') return bplist.parse(payload);
-  // Fallback for XML replies (older iPadOS versions).
+  // Fallback for XML replies (older iOS / iPadOS versions).
   const { plist } = require('@appium/support');
   return plist.parsePlist(payload);
 }
@@ -168,7 +170,7 @@ async function deviceInfo(udid) {
   return { udid, name: info.DeviceName, ios: info.ProductVersion, model: info.ProductType };
 }
 
-/** Apps installed on the iPad that a person would see (user apps + visible Apple apps). */
+/** Apps installed on the device that a person would see (user apps + visible Apple apps). */
 async function installedApps(udid) {
   const proxy = await services.startInstallationProxyService(udid);
   try {

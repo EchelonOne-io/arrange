@@ -11,7 +11,7 @@ Keynote Pages Numbers GarageBand iMovie Clips Chess Minecraft Wordle Sudoku Head
 const HOME_APPS = [...DEMO_APPS];
 const GAMES = new Set(['Chess', 'Minecraft', 'Wordle', 'Sudoku']);
 
-function demoState() {
+function demoState(kind = 'ipad') {
   const app = (name) => ({
     displayName: name,
     bundleIdentifier: `com.demo.${name.toLowerCase()}`,
@@ -19,10 +19,15 @@ function demoState() {
     iconModDate: new PDate(789652800.123456),
   });
   const apps = HOME_APPS.map(app);
-  const dock = apps.slice(0, 6);
-  const rest = apps.slice(6).filter((a) => !GAMES.has(a.displayName));
+  const dockSize = kind === 'iphone' ? 4 : 6;
+  const dock = apps.slice(0, dockSize);
+  const rest = apps.slice(dockSize).filter((a) => !GAMES.has(a.displayName));
   const folder = { displayName: 'Games', listType: 'folder', iconLists: [[...GAMES].map(app)] };
   const widget = { elementType: 'widget', gridSize: 'medium', containerBundleIdentifier: 'com.apple.weather', displayName: 'Weather' };
+  if (kind === 'iphone') {
+    // 4 x 6 pages: a medium widget takes 8 of the 24 spots.
+    return [dock, [widget, ...rest.slice(0, 16)], [...rest.slice(16, 39), folder], rest.slice(39)];
+  }
   return [dock, [widget, ...rest.slice(0, 18)], [...rest.slice(18, 40), folder], rest.slice(40)];
 }
 

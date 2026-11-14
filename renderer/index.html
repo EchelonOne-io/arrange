@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>iPad Organizer</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' ipadicon: data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>Home Screen Organizer</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' appicon: data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
 <script src="Sortable.min.js"></script>
 <style>
 :root{
@@ -40,12 +40,15 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;padding:16p
 @media (max-width:900px){main{grid-template-columns:1fr}}
 .pages{display:flex;flex-wrap:wrap;gap:16px}
 .page{background:linear-gradient(160deg,var(--page),var(--page2));border-radius:18px;padding:12px 12px 14px;width:min(100%,470px);box-shadow:var(--shadow)}
+[data-device="iphone"] .page{width:min(100%,330px);border-radius:26px}
 .page-head{display:flex;align-items:center;gap:6px;color:#dfe3f1;font-size:12px;margin:0 2px 8px}
 .page-head b{font-weight:600}
 .page-head .full{color:#ffb4a6}
 .page-head .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);color:#e9ecf7}
-.grid{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:78px;grid-auto-flow:row dense;gap:4px;min-height:82px;border-radius:12px}
+.grid{display:grid;grid-template-columns:repeat(var(--cols,6),1fr);grid-auto-rows:78px;grid-auto-flow:row dense;gap:4px;min-height:82px;border-radius:12px}
 .dock .grid{grid-template-columns:repeat(auto-fill,minmax(70px,1fr));min-height:82px}
+[data-device="iphone"] .dock{max-width:330px}
+[data-device="iphone"] .dock .grid{grid-template-columns:repeat(4,1fr)}
 .dock{background:rgba(127,127,127,.12);border-radius:18px;padding:10px 12px;margin-bottom:16px;border:1px solid var(--line)}
 .dock .label,.side h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px;font-weight:600}
 .tile{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;padding-top:4px;border-radius:12px;cursor:grab;user-select:none;position:relative;min-width:0}
@@ -65,7 +68,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;padding:16p
 .tile.w-small{grid-column:span 2;grid-row:span 2}
 .tile.w-medium{grid-column:span 4;grid-row:span 2}
 .tile.w-large{grid-column:span 4;grid-row:span 4}
-.tile.w-extralarge{grid-column:span 6;grid-row:span 4}
+.tile.w-extralarge{grid-column:span var(--cols,6);grid-row:span 4}
 .sortable-ghost{opacity:.35}
 .sortable-chosen .ic{transform:scale(1.06)}
 .side{position:sticky;top:70px;display:flex;flex-direction:column;gap:16px}
@@ -89,6 +92,9 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;padding:16p
 .devlist{display:flex;flex-direction:column;gap:8px;max-width:420px;margin:16px auto 0;text-align:left}
 .dev{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:10px 12px}
 .dev .meta{flex:1}
+.dev-kind{flex:none;width:22px;height:30px;border:2px solid var(--muted);border-radius:4px}
+.dev-kind.iphone{width:16px;height:30px;border-radius:5px}
+.dev-kind.ipad{width:24px;height:30px}
 .dev .err{color:var(--danger);font-size:12px}
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);max-width:520px;width:calc(100vw - 32px)}
 dialog::backdrop{background:rgba(0,0,0,.35)}
@@ -98,26 +104,26 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 </head>
 <body>
 <header>
-  <h1>iPad Organizer</h1>
-  <span class="status"><span id="dot" class="dot"></span><span id="devname">Not connected</span><button class="btn small" id="leavedemo" hidden>Use my real iPad</button></span>
+  <h1>Home Screen Organizer</h1>
+  <span class="status"><span id="dot" class="dot"></span><span id="devname">Not connected</span><button class="btn small" id="leavedemo" hidden>Use my real device</button></span>
   <span class="spacer"></span>
   <input id="search" class="search" type="search" placeholder="Find an app…" autocomplete="off">
   <button class="btn" id="undo" title="Undo (⌘Z)" disabled>Undo</button>
   <button class="btn" id="redo" title="Redo (⇧⌘Z)" disabled>Redo</button>
   <button class="btn" id="sortall" disabled title="Sort every page's apps and folders A to Z (the dock stays as it is)">Sort all A–Z</button>
   <button class="btn" id="addpage" disabled>+ Page</button>
-  <button class="btn" id="reload" title="Throw away unapplied changes and read the layout from the iPad again">Reload</button>
+  <button class="btn" id="reload" title="Throw away unapplied changes and read the layout from the device again">Reload</button>
   <button class="btn" id="backups">Backups</button>
-  <button class="btn primary" id="apply" disabled>Apply to iPad</button>
+  <button class="btn primary" id="apply" disabled>Apply</button>
 </header>
 
 <main id="app">
   <div id="board">
     <div class="empty" id="welcome">
-      <h2>Plug in your iPad</h2>
+      <h2>Plug in your iPhone or iPad</h2>
       <p>Connect it with a USB cable, unlock it, and tap <b>Trust</b> if it asks.</p>
       <div class="devlist" id="devlist"></div>
-      <p style="margin-top:16px"><button class="btn" id="rescan">Look again</button> <button class="btn" id="trydemo">Try it with a sample iPad</button></p>
+      <p style="margin-top:16px"><button class="btn" id="rescan">Look again</button> <button class="btn" id="trydemo">Try it with a sample device</button></p>
       <p class="hint" id="trusthint" style="max-width:440px;margin:18px auto 0"></p>
     </div>
   </div>
@@ -137,7 +143,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     <div class="card">
       <h2>App Library only <span id="hiddenCount" style="font-weight:400"></span></h2>
       <div class="grid" id="hidden" data-c="hidden"></div>
-      <p class="hint">These apps are installed but not on your Home Screen. Drag one onto a page to add it. Drag apps here to remove them from the Home Screen; they stay installed and in the App Library.</p>
+      <p class="hint">These apps are installed but not on your Home Screen. Drag one onto a page to add it. Drag apps here to take them off your pages. iOS insists every app has a spot, so these are kept in "App Library" folders on one last page: hide that page once on your device and they're out of sight.</p>
     </div>
     <div class="card">
       <h2>Shelf</h2>
@@ -146,7 +152,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     </div>
     <div class="card">
       <h2>Tips</h2>
-      <p class="hint" style="margin:0">Drag to move. Click icons to select several, then make a folder or move them together. Double-click a folder to open it. Nothing changes on the iPad until you press <b>Apply to iPad</b>, and a backup is saved first.</p>
+      <p class="hint" style="margin:0" id="tipsText"></p>
     </div>
   </aside>
 </main>
