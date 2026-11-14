@@ -34,7 +34,7 @@ npm run dist:mac:signed  # build a signed + notarized .dmg (see Signing below)
 npm run dist:win   # build a Windows installer (run on Windows)
 ```
 
-The GitHub Actions workflow in `.github/workflows/build.yml` builds both installers on every `v*` tag,
+The GitHub Actions workflow in `.github/workflows/build.yml` builds the signed Mac installer on every `v*` tag,
 or on demand from the Actions tab.
 
 **Signing:** an unsigned Mac app needs right-click → Open on first launch. To sign and notarize it so it

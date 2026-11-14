@@ -1,4 +1,4 @@
-name: Build installers
+name: Build Mac installer
 
 on:
   workflow_dispatch:
@@ -7,14 +7,7 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest
-            script: dist:mac
-          - os: windows-latest
-            script: dist:win
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,21 +15,18 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm test
-      - run: npm run ${{ matrix.script }} -- --publish never
+      - run: npm run dist:mac -- --publish never
         env:
-          # Optional: add these repository secrets to sign and notarize the Mac app
+          # Optional: add these repository secrets to sign and notarize the app
           # (needs an Apple Developer account). Without them the app is unsigned.
-          # The Apple certificate is only for the Mac build; Windows doesn't trust it.
-          CSC_LINK: ${{ runner.os == 'macOS' && secrets.MAC_CERT_P12_BASE64 || '' }}
-          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.MAC_CERT_PASSWORD || '' }}
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CERT_P12_BASE64 != '' }}
       - uses: actions/upload-artifact@v4
         with:
-          name: installer-${{ matrix.os }}
-          path: |
-            dist/*.dmg
-            dist/*.exe
+          name: installer-mac
+          path: dist/*.dmg
           if-no-files-found: error
