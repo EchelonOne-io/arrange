@@ -11,6 +11,7 @@
     "demo": "electron . --demo",
     "test": "node --test test/*.test.js",
     "dist:mac": "electron-builder --mac",
+    "dist:mac:signed": "APPLE_KEYCHAIN_PROFILE=${APPLE_KEYCHAIN_PROFILE:-hso-notary} electron-builder --mac",
     "dist:win": "electron-builder --win"
   },
   "dependencies": {
@@ -28,7 +29,10 @@
     "mac": {
       "category": "public.app-category.utilities",
       "target": [{ "target": "dmg", "arch": ["universal"] }],
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "dmg": { "title": "Home Screen Organizer" },
     "win": {

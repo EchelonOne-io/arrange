@@ -30,15 +30,31 @@ npm start          # run the app
 npm run demo       # run with the sample iPad
 npm test           # unit tests
 npm run dist:mac   # build a .dmg (run on a Mac)
+npm run dist:mac:signed  # build a signed + notarized .dmg (see Signing below)
 npm run dist:win   # build a Windows installer (run on Windows)
 ```
 
 The GitHub Actions workflow in `.github/workflows/build.yml` builds both installers on every `v*` tag,
 or on demand from the Actions tab.
 
-**Signing:** without an Apple Developer ID the Mac app is unsigned, so the first launch needs
-right-click → Open (or System Settings → Privacy & Security → Open Anyway). Add the secrets named in
-the workflow to sign and notarize it so it opens normally for everyone.
+**Signing:** an unsigned Mac app needs right-click → Open on first launch. To sign and notarize it so it
+opens normally for everyone, use a **Developer ID Application** certificate (from developer.apple.com →
+Certificates; it must be in your login keychain). The app is built with the hardened runtime and the
+entitlements in `build/entitlements.mac.plist`.
+
+*On your Mac*, once, save notarization credentials in the keychain (needs an app-specific password from
+account.apple.com → Sign-In and Security):
+
+```bash
+xcrun notarytool store-credentials hso-notary --apple-id you@example.com --team-id YOURTEAMID
+```
+
+Then `npm run dist:mac:signed` signs with the Developer ID in your keychain and notarizes the app.
+Use `APPLE_KEYCHAIN_PROFILE=other-name` to pick a different saved profile.
+
+*In GitHub Actions*, add these repository secrets: `MAC_CERT_P12_BASE64` (the certificate and its private
+key exported from Keychain Access as a .p12, then `base64 -i cert.p12 | pbcopy`), `MAC_CERT_PASSWORD`,
+`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID`. Without them the workflow builds unsigned.
 
 ### How it works
 
