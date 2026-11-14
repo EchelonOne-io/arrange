@@ -30,7 +30,7 @@
       "category": "public.app-category.utilities",
       "artifactName": "Arrange-${version}.${ext}",
       "target": [{ "target": "dmg", "arch": ["universal"] }],
-      "icon": "build/icon.png",
+      "icon": "build/Arrange.icon",
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"

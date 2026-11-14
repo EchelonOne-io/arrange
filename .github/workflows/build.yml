@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # macOS 26 runners ship Xcode 26, whose actool compiles the Icon Composer icon.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
