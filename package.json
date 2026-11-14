@@ -24,7 +24,7 @@
   "build": {
     "appId": "app.homescreenorganizer.desktop",
     "productName": "Home Screen Organizer",
-    "files": ["src/**", "renderer/**", "package.json"],
+    "files": ["src/**", "renderer/**", "package.json", "!node_modules/sharp/**", "!node_modules/@img/**"],
     "directories": { "buildResources": "build", "output": "dist" },
     "mac": {
       "category": "public.app-category.utilities",
