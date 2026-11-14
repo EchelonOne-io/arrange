@@ -16,7 +16,8 @@ Try it without a device: click **Try it with a sample device** and pick the samp
 
 ## For people using it
 
-1. Install and open Home Screen Organizer.
+1. [Download the Mac app](https://github.com/EchelonOne-io/iorg/releases/latest/download/Home-Screen-Organizer.dmg),
+   open the .dmg and drag Home Screen Organizer to Applications.
 2. Plug the iPad in with a cable and unlock it.
 3. First time only: on a Mac, open Finder, click the iPad in the sidebar and choose **Trust**, then tap
    **Trust** on the iPad. On Windows, install the **Apple Devices** app from the Microsoft Store first.
@@ -97,4 +98,3 @@ key exported from Keychain Access as a .p12, then `base64 -i cert.p12 | pbcopy`)
 
 - Widgets show as grey blocks: movable between pages, not editable.
 - Apple does not document this protocol, so a future iPadOS update could change what it accepts.
-- Not yet tested on a real iPad or iPhone.
