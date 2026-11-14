@@ -1,9 +1,14 @@
 name: Build Mac installer
 
+# Publishing a GitHub Release (tag like v1.2.0) builds, signs and notarizes the app and
+# attaches the .dmg to that release. "Run workflow" on the Actions tab builds without releasing.
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
+
+permissions:
+  contents: write # to attach the .dmg to the release
 
 jobs:
   build:
@@ -15,6 +20,11 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm test
+      - name: Use the release tag as the app version
+        if: github.event_name == 'release'
+        run: npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
       - run: npm run dist:mac -- --publish never
         env:
           # Optional: add these repository secrets to sign and notarize the app
@@ -30,3 +40,13 @@ jobs:
           name: installer-mac
           path: dist/*.dmg
           if-no-files-found: error
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        # Two copies: a versioned file, and a fixed name so
+        # /releases/latest/download/Home-Screen-Organizer.dmg always serves the newest one.
+        run: |
+          cp dist/Home-Screen-Organizer-*.dmg dist/Home-Screen-Organizer.dmg
+          gh release upload "$TAG" dist/Home-Screen-Organizer-*.dmg dist/Home-Screen-Organizer.dmg --clobber
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}

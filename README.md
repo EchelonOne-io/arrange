@@ -34,8 +34,14 @@ npm run dist:mac:signed  # build a signed + notarized .dmg (see Signing below)
 npm run dist:win   # build a Windows installer (run on Windows)
 ```
 
-The GitHub Actions workflow in `.github/workflows/build.yml` builds the signed Mac installer on every `v*` tag,
-or on demand from the Actions tab. It does not build Windows; build that yourself as below.
+**Releasing:** on GitHub, go to Releases → **Draft a new release**, create a tag like `v1.2.0`, and
+publish. The workflow in `.github/workflows/build.yml` builds, signs and notarizes the Mac app, uses the tag
+as the app version, and attaches the .dmg to the release in about 5 minutes. The newest release is always at:
+
+https://github.com/EchelonOne-io/iorg/releases/latest/download/Home-Screen-Organizer.dmg
+
+Running the workflow from the Actions tab builds the same .dmg as a downloadable artifact without
+releasing anything. CI does not build Windows; build that yourself as below.
 
 **Building for Windows:** run these on a Windows PC with [Node.js 22](https://nodejs.org) and Git installed:
 

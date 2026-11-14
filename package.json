@@ -28,6 +28,7 @@
     "directories": { "buildResources": "build", "output": "dist" },
     "mac": {
       "category": "public.app-category.utilities",
+      "artifactName": "Home-Screen-Organizer-${version}.${ext}",
       "target": [{ "target": "dmg", "arch": ["universal"] }],
       "icon": "build/icon.png",
       "hardenedRuntime": true,
