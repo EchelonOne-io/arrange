@@ -78,7 +78,7 @@ async function load(udid, quiet){
     $('#dot').classList.add('on');
     $('#devname').textContent = `${device.name || profile.label}${device.ios ? ` · ${profile.os} ${device.ios}` : ''}`;
     render();
-    if(!quiet) toast('Layout loaded. A backup copy was saved in Documents › Home Screen Organizer Backups.', 'ok');
+    if(!quiet) toast('Layout loaded. A backup copy was saved in Documents › Arrange Backups.', 'ok');
   }catch(e){ toast(e.message, 'err', 10000); }
 }
 

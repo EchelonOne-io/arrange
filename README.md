@@ -1,6 +1,7 @@
-# Home Screen Organizer
+# Arrange
 
-A desktop app (Mac and Windows) for rearranging your iPad or iPhone Home Screen from your computer over USB.
+Arrange your iPhone and iPad Home Screen from your computer. Plug in over USB, drag things where you want
+them, and apply. A desktop app for Mac (and Windows).
 It detects which one is plugged in and shows its real grid: 6 × 5 pages on an iPad, 4 × 6 pages and a
 4-item Dock on an iPhone.
 
@@ -9,15 +10,15 @@ It detects which one is plugged in and shows its real grid: 6 × 5 pages on an i
 - **Remove apps from the Home Screen** (they stay installed, in the App Library), or add App-Library-only apps back
 - Sort a page or everything A–Z, undo/redo, search
 - Nothing changes until you press **Apply to iPad**. A backup is saved first, in
-  `Documents/Home Screen Organizer Backups`, and **Backups** restores any of them
-  (backups from when the app was called iPad Organizer are moved there on first launch)
+  `Documents/Arrange Backups`, and **Backups** restores any of them
+  (backups from the app's earlier names, Home Screen Organizer and iPad Organizer, are moved there on first launch)
 
 Try it without a device: click **Try it with a sample device** and pick the sample iPad or iPhone.
 
 ## For people using it
 
-1. [Download the Mac app](https://github.com/EchelonOne-io/iorg/releases/latest/download/Home-Screen-Organizer.dmg),
-   open the .dmg and drag Home Screen Organizer to Applications.
+1. [Download the Mac app](https://github.com/EchelonOne-io/arrange/releases/latest/download/Arrange.dmg),
+   open the .dmg and drag Arrange to Applications.
 2. Plug the iPad in with a cable and unlock it.
 3. First time only: on a Mac, open Finder, click the iPad in the sidebar and choose **Trust**, then tap
    **Trust** on the iPad. On Windows, install the **Apple Devices** app from the Microsoft Store first.
@@ -39,7 +40,7 @@ npm run dist:win   # build a Windows installer (run on Windows)
 publish. The workflow in `.github/workflows/build.yml` builds, signs and notarizes the Mac app, uses the tag
 as the app version, and attaches the .dmg to the release in about 5 minutes. The newest release is always at:
 
-https://github.com/EchelonOne-io/iorg/releases/latest/download/Home-Screen-Organizer.dmg
+https://github.com/EchelonOne-io/arrange/releases/latest/download/Arrange.dmg
 
 Running the workflow from the Actions tab builds the same .dmg as a downloadable artifact without
 releasing anything. CI does not build Windows; build that yourself as below.
@@ -47,14 +48,14 @@ releasing anything. CI does not build Windows; build that yourself as below.
 **Building for Windows:** run these on a Windows PC with [Node.js 22](https://nodejs.org) and Git installed:
 
 ```powershell
-git clone https://github.com/EchelonOne-io/iorg.git
-cd iorg
+git clone https://github.com/EchelonOne-io/arrange.git
+cd arrange
 npm ci
 npm test
 npm run dist:win
 ```
 
-The installer lands in `dist\Home Screen Organizer Setup <version>.exe`. It is unsigned, so on first run
+The installer lands in `dist\Arrange Setup <version>.exe`. It is unsigned, so on first run
 Windows SmartScreen shows a warning: click **More info → Run anyway**. To sign it, get a Windows
 code-signing certificate (.pfx) and set `CSC_LINK` (path to the .pfx) and `CSC_KEY_PASSWORD` before
 `npm run dist:win`. The Apple certificate does not work for Windows. To use the app, the PC also needs the

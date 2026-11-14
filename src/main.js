@@ -17,7 +17,7 @@ function createWindow() {
     height: 900,
     minWidth: 760,
     minHeight: 560,
-    title: 'Home Screen Organizer',
+    title: 'Arrange',
     backgroundColor: '#f3f4f7',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -35,12 +35,14 @@ function createWindow() {
   win.webContents.on('will-navigate', (e) => e.preventDefault());
 }
 
-/** The app used to be called iPad Organizer; carry its backups over to the new folder name. */
-function moveOldBackups(oldDir, newDir) {
-  try {
-    if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) fs.renameSync(oldDir, newDir);
-  } catch (e) {
-    console.warn('could not move old backups', e && e.message);
+/** The app used to be called Home Screen Organizer, and before that iPad Organizer; carry their backups over. */
+function moveOldBackups(oldDirs, newDir) {
+  for (const oldDir of oldDirs) {
+    try {
+      if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) fs.renameSync(oldDir, newDir);
+    } catch (e) {
+      console.warn('could not move old backups', e && e.message);
+    }
   }
 }
 
@@ -55,8 +57,9 @@ const ROUTES = {
 };
 
 app.whenReady().then(() => {
-  const backupDir = path.join(app.getPath('documents'), 'Home Screen Organizer Backups');
-  moveOldBackups(path.join(app.getPath('documents'), 'iPad Organizer Backups'), backupDir);
+  const docs = app.getPath('documents');
+  const backupDir = path.join(docs, 'Arrange Backups');
+  moveOldBackups([path.join(docs, 'Home Screen Organizer Backups'), path.join(docs, 'iPad Organizer Backups')], backupDir);
   backend = new Backend({
     backupDir,
     iconDir: path.join(app.getPath('userData'), 'icon-cache'),

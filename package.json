@@ -1,6 +1,6 @@
 {
-  "name": "home-screen-organizer",
-  "productName": "Home Screen Organizer",
+  "name": "arrange",
+  "productName": "Arrange",
   "version": "1.0.0",
   "description": "Rearrange your iPhone or iPad Home Screen from your computer over USB.",
   "main": "src/main.js",
@@ -22,20 +22,20 @@
     "electron-builder": "26.18.0"
   },
   "build": {
-    "appId": "app.homescreenorganizer.desktop",
-    "productName": "Home Screen Organizer",
+    "appId": "io.echelonone.arrange",
+    "productName": "Arrange",
     "files": ["src/**", "renderer/**", "package.json", "!node_modules/sharp/**", "!node_modules/@img/**"],
     "directories": { "buildResources": "build", "output": "dist" },
     "mac": {
       "category": "public.app-category.utilities",
-      "artifactName": "Home-Screen-Organizer-${version}.${ext}",
+      "artifactName": "Arrange-${version}.${ext}",
       "target": [{ "target": "dmg", "arch": ["universal"] }],
       "icon": "build/icon.png",
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist"
     },
-    "dmg": { "title": "Home Screen Organizer" },
+    "dmg": { "title": "Arrange" },
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "build/icon.png"

@@ -43,10 +43,10 @@ jobs:
       - name: Attach to the release
         if: github.event_name == 'release'
         # Two copies: a versioned file, and a fixed name so
-        # /releases/latest/download/Home-Screen-Organizer.dmg always serves the newest one.
+        # /releases/latest/download/Arrange.dmg always serves the newest one.
         run: |
-          cp dist/Home-Screen-Organizer-*.dmg dist/Home-Screen-Organizer.dmg
-          gh release upload "$TAG" dist/Home-Screen-Organizer-*.dmg dist/Home-Screen-Organizer.dmg --clobber
+          cp dist/Arrange-*.dmg dist/Arrange.dmg
+          gh release upload "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg --clobber
         env:
           TAG: ${{ github.event.release.tag_name }}
           GH_TOKEN: ${{ github.token }}
