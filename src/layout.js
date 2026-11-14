@@ -20,6 +20,8 @@ const isParkingPage = (list) => Array.isArray(list) && list.length > 0
   && list.every((x) => isFolder(x) && String(x.displayName || '').startsWith(PARK_NAME));
 
 function widgetSize(item) {
+  // App placements (iconType "app" with a UUID id) have no gridSize and take one icon cell.
+  if (item.gridSize == null && !Array.isArray(item.elements)) return 'icon';
   const s = String(item.gridSize || 'small').toLowerCase();
   return WIDGET_SIZES.has(s) ? s : 'small';
 }
@@ -81,7 +83,10 @@ class Layout {
         if (isObj(first)) label = first.displayName || first.containerBundleIdentifier || label;
         if (item.elements.length > 1) label = `Stack (${item.elements.length})`;
       }
-      return { uid, kind: 'widget', name: String(label).split('.').pop(), size: widgetSize(item) };
+      const size = widgetSize(item);
+      const node = { uid, kind: 'widget', name: String(label).split('.').pop(), size };
+      if (size === 'icon' && item.bundleIdentifier) node.icon = `appicon://icon/${encodeURIComponent(item.bundleIdentifier)}`;
+      return node;
     }
     return { uid, kind: 'other', name: 'Item' };
   }

@@ -1,7 +1,7 @@
 // Home Screen shape of the open device; the backend sends the real one on load.
 const DEFAULT_PROFILE = {kind:'ipad', label:'iPad', os:'iPadOS', cols:6, rows:5, cells:30, dockMax:null};
 let profile = DEFAULT_PROFILE;
-const WIDGET_CELLS = {small:4, medium:8, large:16, extralarge:24};
+const WIDGET_CELLS = {icon:1, small:4, medium:8, large:16, extralarge:24};
 const $ = s => document.querySelector(s);
 
 let nodes = {};      // uid -> {uid, kind, name, id, icon, size, pages:[[uid]] (folders)}
@@ -110,7 +110,7 @@ function tileHTML(uid){
     const minis = n.pages.flat().slice(0,9).map(u => `<i style="${iconStyle(nodes[u])}"></i>`).join('');
     return `<div class="tile folder${sel}" data-uid="${uid}" data-kind="folder" title="${esc(n.name)} (double-click to open)"><div class="ic">${minis}</div><div class="nm">${esc(n.name)}</div></div>`;
   }
-  if(n.kind === 'widget'){
+  if(n.kind === 'widget' && n.size !== 'icon'){
     return `<div class="tile widget w-${n.size}${sel}" data-uid="${uid}" data-kind="widget" title="Widget: ${esc(n.name)}"><div class="wn">${esc(n.name)}</div><div class="ws">${n.size} widget</div></div>`;
   }
   const letter = esc((n.name||'?').slice(0,1).toUpperCase());

@@ -123,6 +123,8 @@ test('widgets that carry iconLists are not treated as folders and round-trip unt
   const tree = lay.toTree();
   assert.deepStrictEqual(tree.pages[0].map((n) => n.kind), ['widget', 'widget', 'folder']);
   assert.strictEqual(tree.pages[0][0].name, 'Gmail');
+  assert.strictEqual(tree.pages[0][0].size, 'icon'); // one cell, not a 2x2 widget
+  assert.strictEqual(tree.pages[0][1].size, 'small');
   const out = lay.fromTree(tree);
   assert.deepStrictEqual(bplist.build(out), bplist.build(state));
   assert.ok(!('listType' in out[1][0]));
