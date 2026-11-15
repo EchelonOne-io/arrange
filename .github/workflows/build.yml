@@ -51,19 +51,43 @@ jobs:
         env:
           TAG: ${{ github.event.release.tag_name }}
           GH_TOKEN: ${{ github.token }}
+
+  # This repo is private, so the public download link lives in EchelonOne-io/arrange-releases.
+  # Publishing runs in its own job that never checks out or runs the release's code, so that code
+  # can't reach RELEASES_TOKEN (a fine-grained token with Contents read and write on that repo).
+  publish:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # One at a time, so two quick releases can't race each other.
+    concurrency: publish-downloads
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+      PRERELEASE: ${{ github.event.release.prerelease }}
+      PUBLIC_REPO: EchelonOne-io/arrange-releases
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-mac
+          path: dist
       - name: Publish to the public downloads repo
-        if: github.event_name == 'release'
-        # This repo is private, so the public download link lives in EchelonOne-io/arrange-releases.
-        # RELEASES_TOKEN: a fine-grained token with Contents read and write on that repo.
         run: |
+          cp dist/Arrange-*.dmg dist/Arrange.dmg
           printf '%s\n' "$NOTES" > notes.md
+          # Only the source repo's latest release becomes the public latest download, so
+          # prereleases and older releases published late never replace it.
+          LATEST=false
+          [ "$(GH_TOKEN="$SOURCE_TOKEN" gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" = "$TAG" ] && LATEST=true
           if gh release view "$TAG" -R "$PUBLIC_REPO" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg -R "$PUBLIC_REPO" --clobber
           else
-            gh release create "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg -R "$PUBLIC_REPO" --title "$TAG" --notes-file notes.md
+            # With files attached, gh uploads to a draft and publishes only once they're all there.
+            gh release create "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg -R "$PUBLIC_REPO" \
+              --title "$TAG" --notes-file notes.md --prerelease="$PRERELEASE" --latest="$LATEST"
           fi
         env:
-          TAG: ${{ github.event.release.tag_name }}
           NOTES: ${{ github.event.release.body }}
-          PUBLIC_REPO: EchelonOne-io/arrange-releases
+          SOURCE_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
