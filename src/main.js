@@ -4,6 +4,10 @@ const path = require('path');
 const { app, BrowserWindow, ipcMain, protocol, shell, Menu } = require('electron');
 const { Backend } = require('./backend');
 const { License, LicenseError } = require('./license');
+const { ErrorLog, issueUrl } = require('./support');
+
+// Bump when the Terms of Service change, so everyone is asked to agree to the new version.
+const TERMS_VERSION = 1;
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'appicon', privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -12,6 +16,8 @@ protocol.registerSchemesAsPrivileged([
 let backend;
 let license;
 let win;
+let errorLog;
+let termsFile;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -65,7 +71,30 @@ const ROUTES = {
   license: (body) => license.status(body || {}),
   activate: (body) => license.activate(body && body.key),
   deactivate: () => license.deactivate(),
+  help: (body) => {
+    const kind = body && body.kind;
+    if (!['bug', 'feedback', 'errors'].includes(kind)) throw new Error('Unknown help link');
+    shell.openExternal(issueUrl(kind, { version: app.getVersion(), device: backend.info, errors: errorLog.recent() }));
+    return { ok: true };
+  },
+  errorCount: () => errorLog.recent().length,
+  clearErrors: () => { errorLog.clear(); return { ok: true }; },
+  logError: (body) => { errorLog.record({ message: body && body.message, stack: body && body.stack }, 'window'); return { ok: true }; },
+  terms: () => {
+    let saved = null;
+    try { saved = JSON.parse(fs.readFileSync(termsFile, 'utf8')); } catch {}
+    const text = fs.readFileSync(path.join(__dirname, '..', 'TERMS.md'), 'utf8');
+    return { accepted: !!saved && saved.version >= TERMS_VERSION, text };
+  },
+  acceptTerms: () => {
+    fs.writeFileSync(termsFile, JSON.stringify({ version: TERMS_VERSION, at: new Date().toISOString() }));
+    return { accepted: true };
+  },
+  quit: () => { app.quit(); return { ok: true }; },
 };
+
+process.on('uncaughtException', (e) => { console.error(e); if (errorLog) errorLog.record(e, 'main'); });
+process.on('unhandledRejection', (e) => { console.error(e); if (errorLog) errorLog.record(e, 'main'); });
 
 app.whenReady().then(() => {
   const docs = app.getPath('documents');
@@ -77,6 +106,8 @@ app.whenReady().then(() => {
     demo: process.argv.includes('--demo'),
   });
   license = new License({ file: path.join(app.getPath('userData'), 'license.json') });
+  errorLog = new ErrorLog({ file: path.join(app.getPath('userData'), 'errors.json') });
+  termsFile = path.join(app.getPath('userData'), 'terms.json');
 
   ipcMain.handle('api', async (_e, route, body) => {
     const fn = ROUTES[route];
@@ -87,6 +118,7 @@ app.whenReady().then(() => {
       if (e instanceof LicenseError) return { error: e.message };
       const { friendly } = require('./device');
       console.error(e);
+      errorLog.record(e, route);
       return { error: friendly(e, backend.info ? backend.info.profile.label : undefined) };
     }
   });
@@ -104,6 +136,16 @@ app.whenReady().then(() => {
       { role: 'editMenu' },
       { role: 'viewMenu' },
       { role: 'windowMenu' },
+      {
+        role: 'help',
+        submenu: [
+          { label: 'Report a Problem…', click: () => ROUTES.help({ kind: 'bug' }) },
+          { label: 'Send Feedback…', click: () => ROUTES.help({ kind: 'feedback' }) },
+          { label: 'Send Error Report…', click: () => ROUTES.help({ kind: 'errors' }) },
+          { type: 'separator' },
+          { label: 'Terms of Service', click: () => { if (win && !win.isDestroyed()) win.webContents.send('show', 'terms'); } },
+        ],
+      },
     ]));
   } else {
     Menu.setApplicationMenu(null);

@@ -27,6 +27,10 @@ Try it without a device: click **Try it with a sample device** and pick the samp
 Rearranging and the sample devices are free. Applying to your own device needs a license key: click
 **Buy / Enter key**, buy one, and paste the key from your purchase email.
 
+**Help** (in the toolbar, and the Help menu on a Mac) opens a prefilled GitHub issue to report a problem,
+send feedback, or send an error report with recent errors. Nothing is sent until you submit the issue.
+Using Arrange means agreeing to the [Terms of Service](TERMS.md); the app asks once on first launch.
+
 ## For developers
 
 ```
@@ -42,6 +46,12 @@ npm run dist:win   # build a Windows installer (run on Windows)
 **License keys:** sold through [Polar](https://polar.sh). Set the organization ID and checkout link at the
 top of `src/license.js`. To test against Polar's sandbox, run with `ARRANGE_POLAR_SANDBOX=1
 ARRANGE_POLAR_ORG_ID=<sandbox org id> npm start`.
+
+**Help and terms:** problem reports, feedback and error reports open issues on the public
+[arrange-releases](https://github.com/EchelonOne-io/arrange-releases/issues) repo (`src/support.js`). Errors
+from the app are kept in `errors.json` in the app's data folder, with the home folder path hidden. The
+terms dialog shows `TERMS.md`; bump `TERMS_VERSION` in `src/main.js` after changing it so everyone agrees
+again.
 
 **Releasing:** on GitHub, go to Releases → **Draft a new release**, create a tag like `v1.2.0`, and
 publish. The workflow in `.github/workflows/build.yml` builds, signs and notarizes the Mac app, uses the tag

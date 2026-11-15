@@ -99,6 +99,11 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;padding:16p
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);max-width:520px;width:calc(100vw - 32px)}
 dialog::backdrop{background:rgba(0,0,0,.35)}
 .bk{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;gap:8px}
+.help-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.help-row .hint{margin:2px 0 0}
+#termstext{max-height:min(60vh,520px);overflow-y:auto;font-size:13px;border:1px solid var(--line);border-radius:10px;padding:4px 14px;background:var(--bg)}
+#termstext h4{margin:14px 0 4px;font-size:13px}
+#termstext p{margin:0 0 8px;color:var(--muted)}
 .mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
 </style>
 </head>
@@ -114,6 +119,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <button class="btn" id="addpage" disabled>+ Page</button>
   <button class="btn" id="reload" title="Throw away unapplied changes and read the layout from the device again">Reload</button>
   <button class="btn" id="backups">Backups</button>
+  <button class="btn" id="helpbtn">Help</button>
   <button class="btn" id="licbtn">Buy / Enter key</button>
   <button class="btn primary" id="apply" disabled>Apply</button>
 </header>
@@ -190,6 +196,24 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     <p class="hint" id="licerr2" style="color:var(--danger)" hidden></p>
     <p style="text-align:right;margin-bottom:0"><button class="btn" id="licdeact">Deactivate on this computer</button> <button class="btn primary" id="licdone">Done</button></p>
   </div>
+</dialog>
+
+<dialog id="helpdlg">
+  <h3 style="margin-top:0">Help</h3>
+  <div class="help-row"><div><b>Report a problem</b><p class="hint">Something didn't work or looks wrong.</p></div><button class="btn small" data-help="bug">Report…</button></div>
+  <div class="help-row"><div><b>Send feedback</b><p class="hint">Ideas, requests, or what you'd change.</p></div><button class="btn small" data-help="feedback">Send…</button></div>
+  <div class="help-row"><div><b>Send error report</b><p class="hint" id="errcount">Recent errors from the app, with your app and system versions.</p></div><button class="btn small" data-help="errors">Send…</button></div>
+  <div class="help-row"><div><b>Terms of Service</b><p class="hint">Arrange is provided as is; use it at your own risk.</p></div><button class="btn small" id="helpterms">Read</button></div>
+  <p class="hint">Each of these opens a GitHub issue in your browser with the details filled in. Nothing is sent until you submit it there, and issues are public, so leave out anything private.</p>
+  <p style="text-align:right;margin-bottom:0"><button class="btn small" id="clearerrs">Clear error log</button> <button class="btn" id="helpclose">Close</button></p>
+</dialog>
+
+<dialog id="termsdlg">
+  <h3 style="margin-top:0">Terms of Service</h3>
+  <p class="hint" id="termsask" hidden>Please read and agree to these terms to use Arrange.</p>
+  <div id="termstext"></div>
+  <p style="text-align:right;margin-bottom:0" id="termsfirst" hidden><button class="btn" id="termsquit">Quit</button> <button class="btn primary" id="termsagree">I agree</button></p>
+  <p style="text-align:right;margin-bottom:0" id="termslater"><button class="btn" id="termsclose">Close</button></p>
 </dialog>
 
 <script src="app.js"></script>
