@@ -235,7 +235,11 @@ class AI {
     if (!p) throw new Error('Unknown AI provider.');
     const s = this._read();
     const saved = { ...(s.providers[id] || {}) };
-    if (model !== undefined) saved.model = checkModel(String(model).trim());
+    if (model !== undefined) {
+      // Only apps on this computer get the model on a command line; an API gets it inside JSON, so any name works.
+      saved.model = String(model).trim();
+      if (p.kind === 'cli') checkModel(saved.model);
+    }
     if (baseUrl !== undefined && p.customUrl) saved.baseUrl = String(baseUrl).trim().replace(/\/+$/, '');
     if (apiKey !== undefined) {
       const k = String(apiKey).trim();

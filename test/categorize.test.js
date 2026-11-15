@@ -176,6 +176,7 @@ test('model names that could break out of a Windows command are refused', async 
   assert.throws(() => ai.save({ id: 'codex', model: 'gpt-5" & calc & "' }), /never uses/);
   assert.doesNotThrow(() => ai.save({ id: 'opencode', model: 'openrouter/~anthropic/claude-sonnet-latest' }));
   assert.doesNotThrow(() => ai.save({ id: 'cursor-agent', model: 'gpt-5[high]' }));
+  assert.doesNotThrow(() => ai.save({ id: 'compatible', model: 'My Model\\v2 Q4' }), 'API models can be any name');
 });
 
 test('API keys are never saved unencrypted', () => {
