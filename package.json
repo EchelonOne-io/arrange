@@ -15,7 +15,8 @@
     "dist:win": "electron-builder --win"
   },
   "dependencies": {
-    "appium-ios-device": "3.1.26"
+    "appium-ios-device": "3.1.26",
+    "electron-updater": "6.8.12"
   },
   "devDependencies": {
     "electron": "45.2.3",
@@ -29,7 +30,7 @@
     "mac": {
       "category": "public.app-category.utilities",
       "artifactName": "Arrange-${version}.${ext}",
-      "target": [{ "target": "dmg", "arch": ["universal"] }],
+      "target": [{ "target": "dmg", "arch": ["universal"] }, { "target": "zip", "arch": ["universal"] }],
       "icon": "build/Arrange.icon",
       "hardenedRuntime": true,
       "entitlements": "build/entitlements.mac.plist",
@@ -40,6 +41,7 @@
       "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "build/icon.png"
     },
-    "nsis": { "oneClick": true, "perMachine": false }
+    "nsis": { "oneClick": true, "perMachine": false },
+    "publish": [{ "provider": "github", "owner": "EchelonOne-io", "repo": "arrange-releases" }]
   }
 }

@@ -86,6 +86,8 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;padding:16p
 .selbar select option{color:#000}
 .toast{position:fixed;right:16px;bottom:16px;max-width:380px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:40;display:none}
 .toast.err{border-left-color:var(--danger)}
+.updnote{position:fixed;right:16px;bottom:16px;max-width:340px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:10px;padding:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);z-index:41}
+.updnote p{margin:0 0 10px}
 .toast.ok{border-left-color:var(--ok)}
 .empty{padding:60px 20px;text-align:center;color:var(--muted)}
 .empty h2{color:var(--ink);margin:0 0 6px;font-size:20px}
@@ -119,6 +121,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <button class="btn" id="addpage" disabled>+ Page</button>
   <button class="btn" id="reload" title="Throw away unapplied changes and read the layout from the device again">Reload</button>
   <button class="btn" id="backups">Backups</button>
+  <button class="btn" id="updbtn" hidden title="A new version has been downloaded">Restart to Update</button>
   <button class="btn" id="helpbtn">Help</button>
   <button class="btn" id="licbtn">Buy / Enter key</button>
   <button class="btn primary" id="apply" disabled>Apply</button>
@@ -173,6 +176,10 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <button class="btn small" id="clearsel">Clear</button>
 </div>
 <div class="toast" id="toast"></div>
+<div class="updnote" id="updnote" hidden>
+  <p><b>A new version of Arrange is ready</b><br><span class="hint" id="updnotetext"></span></p>
+  <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn small" id="updlater">Later</button><button class="btn small primary" id="updnow">Restart to Update</button></div>
+</div>
 
 <dialog id="bkdlg">
   <h3 style="margin-top:0">Backups</h3>
@@ -203,6 +210,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <div class="help-row"><div><b>Report a problem</b><p class="hint">Something didn't work or looks wrong.</p></div><button class="btn small" data-help="bug">Report…</button></div>
   <div class="help-row"><div><b>Send feedback</b><p class="hint">Ideas, requests, or what you'd change.</p></div><button class="btn small" data-help="feedback">Send…</button></div>
   <div class="help-row"><div><b>Send error report</b><p class="hint" id="errcount">Recent errors from the app, with your app and system versions.</p></div><button class="btn small" data-help="errors">Send…</button></div>
+  <div class="help-row"><div><b>Updates</b><p class="hint" id="updstatus">New versions download automatically and install when you restart.</p></div><button class="btn small" id="updcheck">Check now</button></div>
   <div class="help-row"><div><b>Terms of Service</b><p class="hint">Arrange is provided as is; use it at your own risk.</p></div><button class="btn small" id="helpterms">Read</button></div>
   <p class="hint">Each of these opens a GitHub issue in your browser with the details filled in. Nothing is sent until you submit it there, and issues are public, so leave out anything private.</p>
   <p style="text-align:right;margin-bottom:0"><button class="btn small" id="clearerrs">Clear error log</button> <button class="btn" id="helpclose">Close</button></p>

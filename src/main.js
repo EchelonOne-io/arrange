@@ -5,6 +5,7 @@ const { app, BrowserWindow, ipcMain, protocol, shell, Menu } = require('electron
 const { Backend } = require('./backend');
 const { License, LicenseError } = require('./license');
 const { ErrorLog, issueUrl } = require('./support');
+const { Updater } = require('./updater');
 
 // Bump when the Terms of Service change, so everyone is asked to agree to the new version.
 const TERMS_VERSION = 1;
@@ -18,6 +19,7 @@ let license;
 let win;
 let errorLog;
 let termsFile;
+let updater;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -91,6 +93,9 @@ const ROUTES = {
     return { accepted: true };
   },
   quit: () => { app.quit(); return { ok: true }; },
+  update: () => updater.state,
+  checkUpdates: () => updater.check(),
+  installUpdate: () => updater.install(),
 };
 
 process.on('uncaughtException', (e) => { console.error(e); if (errorLog) errorLog.record(e, 'main'); });
@@ -108,6 +113,7 @@ app.whenReady().then(() => {
   license = new License({ file: path.join(app.getPath('userData'), 'license.json') });
   errorLog = new ErrorLog({ file: path.join(app.getPath('userData'), 'errors.json') });
   termsFile = path.join(app.getPath('userData'), 'terms.json');
+  updater = new Updater((state) => { if (win && !win.isDestroyed()) win.webContents.send('update', state); });
 
   ipcMain.handle('api', async (_e, route, body) => {
     const fn = ROUTES[route];
@@ -143,6 +149,7 @@ app.whenReady().then(() => {
           { label: 'Send Feedback…', click: () => ROUTES.help({ kind: 'feedback' }) },
           { label: 'Send Error Report…', click: () => ROUTES.help({ kind: 'errors' }) },
           { type: 'separator' },
+          { label: 'Check for Updates…', click: () => { if (win && !win.isDestroyed()) win.webContents.send('show', 'checkUpdates'); } },
           { label: 'Terms of Service', click: () => { if (win && !win.isDestroyed()) win.webContents.send('show', 'terms'); } },
         ],
       },
@@ -152,6 +159,7 @@ app.whenReady().then(() => {
   }
 
   createWindow();
+  updater.start();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
