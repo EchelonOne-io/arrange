@@ -23,7 +23,7 @@
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif}
 button,select,input{font:inherit;color:inherit}
-header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 header h1{font-size:16px;margin:0 8px 0 0;font-weight:650;letter-spacing:-.01em}
 .status{color:var(--muted);font-size:13px;display:flex;align-items:center;gap:6px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
@@ -35,7 +35,7 @@ header h1{font-size:16px;margin:0 8px 0 0;font-weight:650;letter-spacing:-.01em}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .btn.small{padding:3px 8px;font-size:12px;border-radius:6px}
 .btn.danger{color:var(--danger)}
-input.search{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;width:170px}
+input.search{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 10px;width:150px}
 main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;padding:16px;align-items:start}
 @media (max-width:900px){main{grid-template-columns:1fr}}
 .pages{display:flex;flex-wrap:wrap;gap:16px}
@@ -107,6 +107,89 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 #termstext h4{margin:14px 0 4px;font-size:13px}
 #termstext p{margin:0 0 8px;color:var(--muted)}
 .mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+/* settings */
+dialog.wide{max-width:880px;padding:0}
+.set{display:grid;grid-template-columns:230px minmax(0,1fr);min-height:min(560px,80vh)}
+.set-nav{border-right:1px solid var(--line);padding:16px 10px;overflow-y:auto;max-height:80vh}
+.set-nav h3{margin:0 8px 12px;font-size:16px}
+.set-nav h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 8px 4px;font-weight:600}
+.prov{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:none;border-radius:8px;padding:7px 8px;cursor:pointer}
+.prov:hover{background:rgba(127,127,127,.1)}
+.prov:focus{outline:none}
+.prov:focus-visible{box-shadow:inset 0 0 0 2px var(--accent)}
+.set-body a,.org a{color:var(--accent)}
+.prov.cur{background:rgba(47,109,246,.14)}
+.prov .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.set-body > *,.detail > *{flex-shrink:0}
+.opts{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.opt-label{display:flex;align-items:center;gap:8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:10px 12px 4px}
+.opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:8px 12px;cursor:pointer;border-radius:0}
+.opt:hover{background:rgba(127,127,127,.08)}
+.opt.cur{background:rgba(47,109,246,.12)}
+.opt .radio{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid var(--muted);display:grid;place-items:center}
+.opt.on .radio{border-color:var(--accent)}
+.opt.on .radio::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.opt .nm{flex:1;min-width:0}
+.opt .st{font-size:12px;color:var(--muted);white-space:nowrap}
+.opt.off .nm{color:var(--muted)}
+.detail{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:12px}
+.detail h4{margin:0;font-size:15px}
+.prov .tag{font-size:10px;color:var(--accent);font-weight:600}
+.prov .ico{width:8px;display:inline-grid;place-items:center;font-size:11px;filter:grayscale(1);opacity:.75}
+#licon,#licoff{display:flex;flex-direction:column;gap:12px}
+#bklist{border:1px solid var(--line);border-radius:10px;padding:0 12px;max-height:360px;overflow-y:auto}
+#bklist .bk:last-child{border-bottom:0}
+.set-body{padding:18px 20px;overflow-y:auto;max-height:80vh;display:flex;flex-direction:column;gap:12px}
+.set-head{display:flex;align-items:flex-start;gap:10px}
+.set-head h3{margin:0;font-size:18px}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
+.badge.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.badge.on{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent);font-weight:600}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:600}
+.field input,.field select,.field textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 9px;width:100%}
+.cmd{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--muted);overflow-x:auto;white-space:nowrap}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.models{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.models-head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.models-head input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 9px;width:220px;max-width:100%}
+.mlist{max-height:280px;overflow-y:auto}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:8px 12px;cursor:pointer}
+.mrow:last-child{border-bottom:0}
+.mrow:hover{background:rgba(127,127,127,.08)}
+.mrow.on{background:rgba(47,109,246,.1)}
+.mrow b{display:block;font-weight:500}
+.mrow .mono{display:block;color:var(--muted);font-size:11.5px}
+.mnote{padding:8px 12px;color:var(--muted);font-size:12px;border-bottom:1px solid var(--line)}
+.ok-text{color:var(--ok)} .err-text{color:var(--danger)}
+@media (max-width:700px){.set{grid-template-columns:1fr}.set-nav{border-right:0;border-bottom:1px solid var(--line);max-height:220px}}
+/* organize */
+dialog.org{max-width:760px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.choice{border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;display:flex;gap:8px;align-items:flex-start}
+.choice:has(input:checked){border-color:var(--accent);background:rgba(47,109,246,.08)}
+.choice input{margin-top:3px}
+.choice small{display:block;color:var(--muted)}
+.aibox{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--bg)}
+.cats{display:flex;flex-direction:column;gap:10px;max-height:min(56vh,520px);overflow-y:auto;padding-right:4px}
+.cat{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.cat-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.cat-head input{flex:1;border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 6px;font-weight:600}
+.cat-head input:hover,.cat-head input:focus{border-color:var(--line);background:var(--bg)}
+.cat-head span{color:var(--muted);font-size:12px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;min-height:34px;border-radius:8px;padding:2px}
+.chips:empty::before{content:'Drag apps here';color:var(--muted);font-size:12px;padding:7px 6px}
+.cat{transition:border-color .12s,background .12s}
+.cat.drop{border-color:var(--accent);background:rgba(47,109,246,.08)}
+.cat.new{border-style:dashed}
+.cat.new .cat-head{margin-bottom:2px}
+.cat.new .cat-head span{margin-left:auto}
+.cats.dragging .cat.new{border-color:var(--accent)}
+.chip:hover{border-color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:2px 9px 2px 3px;font-size:12px;cursor:grab;user-select:none}
+.chip i{width:20px;height:20px;border-radius:5px;background:#5a6176 center/cover no-repeat;flex:none}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -118,11 +201,11 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <button class="btn" id="undo" title="Undo (⌘Z)" disabled>Undo</button>
   <button class="btn" id="redo" title="Redo (⇧⌘Z)" disabled>Redo</button>
   <button class="btn" id="sortall" disabled title="Sort every page's apps and folders A to Z (the dock stays as it is)">Sort all A–Z</button>
+  <button class="btn" id="organize" disabled title="Organize by category: sort your apps into categories, on their own pages or in folders">Organize</button>
   <button class="btn" id="addpage" disabled>+ Page</button>
   <button class="btn" id="reload" title="Throw away unapplied changes and read the layout from the device again">Reload</button>
-  <button class="btn" id="backups">Backups</button>
   <button class="btn" id="updbtn" hidden title="A new version has been downloaded">Restart to Update</button>
-  <button class="btn" id="helpbtn">Help</button>
+  <button class="btn" id="setbtn" title="License, backups, help, updates and AI">⚙︎ Settings</button>
   <button class="btn" id="licbtn">Buy / Enter key</button>
   <button class="btn primary" id="apply" disabled>Apply</button>
 </header>
@@ -181,39 +264,80 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn small" id="updlater">Later</button><button class="btn small primary" id="updnow">Restart to Update</button></div>
 </div>
 
-<dialog id="bkdlg">
-  <h3 style="margin-top:0">Backups</h3>
-  <p class="hint" id="bkfolder"></p>
-  <div id="bklist"></div>
-  <p style="text-align:right;margin-bottom:0"><button class="btn" id="bkshow">Show in folder</button> <button class="btn" id="bkclose">Close</button></p>
+<dialog id="setdlg" class="wide">
+  <div class="set">
+    <nav class="set-nav">
+      <h3>Settings</h3>
+            <button class="prov" data-prov="page:license"><span class="ico">🔑</span><span class="nm">License</span><span class="tag" id="navlic"></span></button>
+      <button class="prov" data-prov="page:backups"><span class="ico">🗂</span><span class="nm">Backups</span></button>
+      <button class="prov" data-prov="page:help"><span class="ico">💬</span><span class="nm">Help &amp; updates</span><span class="tag" id="navupd"></span></button>
+      <button class="prov" data-prov="ai"><span class="ico">✨</span><span class="nm">AI for organizing</span></button>
+    </nav>
+    <section class="set-body" id="setbody"></section>
+    <section class="set-body" id="page-license" hidden>
+      <div class="set-head"><div><h3 id="lictitle">Unlock Arrange</h3></div><button class="btn small setdone" style="margin-left:auto">Done</button></div>
+      <div id="licoff">
+        <p style="margin:0">Arranging, sorting and the sample devices are free. Applying a layout to your own iPhone or iPad needs a license key.</p>
+        <div class="field"><label for="lickey">License key</label><input class="mono" id="lickey" placeholder="Paste the key from your purchase email" autocomplete="off" spellcheck="false"></div>
+        <p class="hint err-text" id="licerr" hidden></p>
+        <div class="row"><button class="btn primary" id="licgo">Activate</button><button class="btn" id="licbuy">Buy a license</button></div>
+      </div>
+      <div id="licon" hidden>
+        <div class="row"><span class="badge ok">✓ This computer is licensed<span id="licshown"></span></span></div>
+        <p style="margin:0">Thank you for buying Arrange!</p>
+        <p class="hint" style="margin:0">Moving to a new computer? Deactivate here first to free up this activation.</p>
+        <p class="hint err-text" id="licerr2" hidden></p>
+        <div class="row"><button class="btn" id="licdeact">Deactivate on this computer</button></div>
+      </div>
+    </section>
+    <section class="set-body" id="page-backups" hidden>
+      <div class="set-head"><div><h3>Backups</h3><p class="hint" id="bkfolder" style="margin:4px 0 0"></p></div><button class="btn small setdone" style="margin-left:auto">Done</button></div>
+      <p class="hint" style="margin:0;font-size:13px">A copy of your Home Screen layout is saved every time you open it, and before every change. Restore one to put that layout back.</p>
+      <div id="bklist"></div>
+      <div class="row"><button class="btn" id="bkshow">Show in folder</button></div>
+    </section>
+    <section class="set-body" id="page-help" hidden>
+      <div class="set-head"><div><h3>Help &amp; updates</h3></div><button class="btn small setdone" style="margin-left:auto">Done</button></div>
+      <div>
+        <div class="help-row"><div><b>Updates</b><p class="hint" id="updstatus">New versions download automatically and install when you restart.</p></div><button class="btn small" id="updcheck">Check now</button></div>
+        <div class="help-row"><div><b>Report a problem</b><p class="hint">Something didn't work or looks wrong.</p></div><button class="btn small" data-help="bug">Report…</button></div>
+        <div class="help-row"><div><b>Send feedback</b><p class="hint">Ideas, requests, or what you'd change.</p></div><button class="btn small" data-help="feedback">Send…</button></div>
+        <div class="help-row"><div><b>Send error report</b><p class="hint" id="errcount">Recent errors from the app, with your app and system versions.</p></div><div class="row" style="flex-wrap:nowrap"><button class="btn small" id="clearerrs">Clear log</button><button class="btn small" data-help="errors">Send…</button></div></div>
+        <div class="help-row"><div><b>Terms of Service</b><p class="hint">Arrange is provided as is; use it at your own risk.</p></div><button class="btn small" id="helpterms">Read</button></div>
+      </div>
+      <p class="hint" style="margin:0">Reports and feedback open a GitHub issue in your browser with the details filled in. Nothing is sent until you submit it there, and issues are public, so leave out anything private.</p>
+    </section>
+  </div>
 </dialog>
 
-<dialog id="licdlg">
-  <h3 style="margin-top:0" id="lictitle">Unlock Arrange</h3>
-  <div id="licoff">
-    <p class="hint" style="font-size:13px">Arranging, sorting and the sample devices are free. Applying a layout to your own iPhone or iPad needs a license key.</p>
-    <p class="hint" style="font-size:13px">After you buy, the key arrives by email. Paste it here:</p>
-    <input class="folder-name mono" id="lickey" placeholder="License key" autocomplete="off" spellcheck="false">
-    <p class="hint" id="licerr" style="color:var(--danger)" hidden></p>
-    <p style="text-align:right;margin-bottom:0"><button class="btn" id="licbuy">Buy a license</button> <button class="btn" id="licclose">Not now</button> <button class="btn primary" id="licgo">Activate</button></p>
+<dialog id="orgdlg" class="org">
+  <div id="orgstep1">
+    <h3 style="margin-top:0">Organize by category</h3>
+    <div class="aibox"><span id="orgai" style="flex:1"></span><button class="btn small" id="orgaiset">Change…</button></div>
+    <h4 style="margin:16px 0 6px;font-size:13px">Put each category</h4>
+    <div class="choices">
+      <label class="choice"><input type="radio" name="orgmode" value="pages" checked><span><b>On its own page</b><small>Games on one page, Social on the next, and so on.</small></span></label>
+      <label class="choice"><input type="radio" name="orgmode" value="folders"><span><b>In a folder</b><small>One folder per category, all on your first pages.</small></span></label>
+    </div>
+    <div class="row" style="margin-top:14px;gap:16px">
+      <label class="row" style="gap:6px"><input type="checkbox" id="orgfolders" checked> Include apps that are in folders now</label>
+      <label class="row" style="gap:6px">How many categories <select id="orgsize" class="btn small"><option value="fewer">Fewer</option><option value="some" selected>Some</option><option value="more">More</option></select></label>
+    </div>
+    <div class="field" id="orgnotesrow" style="margin-top:14px">
+      <label for="orgnotes">Anything the AI should know? <span class="hint" style="font-weight:400">(optional)</span></label>
+      <input id="orgnotes" maxlength="500" placeholder="For example: put the kids' apps together, and keep work apps separate">
+    </div>
+    <p class="hint">The Dock and widgets stay where they are. App names and IDs are sent to Apple's App Store to look up their categories<span id="orgaiprivacy">, and to the AI you chose</span>. Nothing else is sent.</p>
+    <p class="hint err-text" id="orgerr" hidden></p>
+    <p style="text-align:right;margin-bottom:0"><button class="btn" id="orgcancel">Cancel</button> <button class="btn primary" id="orggo">Suggest categories</button></p>
   </div>
-  <div id="licon" hidden>
-    <p class="hint" style="font-size:13px">This computer is licensed<span id="licshown"></span>. Thank you!</p>
-    <p class="hint">Moving to a new computer? Deactivate here first to free up this activation.</p>
-    <p class="hint" id="licerr2" style="color:var(--danger)" hidden></p>
-    <p style="text-align:right;margin-bottom:0"><button class="btn" id="licdeact">Deactivate on this computer</button> <button class="btn primary" id="licdone">Done</button></p>
+  <div id="orgstep2" hidden>
+    <h3 style="margin-top:0">Here's the plan</h3>
+    <p class="hint" id="orgsummary" style="margin-top:-6px"></p>
+    <div class="cats" id="orgcats"></div>
+    <p class="hint"><b>Drag apps between categories</b>, or click a name to rename it. Nothing changes on your device until you press Apply, and Undo puts everything back.</p>
+    <p style="text-align:right;margin-bottom:0"><button class="btn" id="orgback">Back</button> <button class="btn" id="orgagain">Try again</button> <button class="btn primary" id="orgapply">Arrange my Home Screen</button></p>
   </div>
-</dialog>
-
-<dialog id="helpdlg">
-  <h3 style="margin-top:0">Help</h3>
-  <div class="help-row"><div><b>Report a problem</b><p class="hint">Something didn't work or looks wrong.</p></div><button class="btn small" data-help="bug">Report…</button></div>
-  <div class="help-row"><div><b>Send feedback</b><p class="hint">Ideas, requests, or what you'd change.</p></div><button class="btn small" data-help="feedback">Send…</button></div>
-  <div class="help-row"><div><b>Send error report</b><p class="hint" id="errcount">Recent errors from the app, with your app and system versions.</p></div><button class="btn small" data-help="errors">Send…</button></div>
-  <div class="help-row"><div><b>Updates</b><p class="hint" id="updstatus">New versions download automatically and install when you restart.</p></div><button class="btn small" id="updcheck">Check now</button></div>
-  <div class="help-row"><div><b>Terms of Service</b><p class="hint">Arrange is provided as is; use it at your own risk.</p></div><button class="btn small" id="helpterms">Read</button></div>
-  <p class="hint">Each of these opens a GitHub issue in your browser with the details filled in. Nothing is sent until you submit it there, and issues are public, so leave out anything private.</p>
-  <p style="text-align:right;margin-bottom:0"><button class="btn small" id="clearerrs">Clear error log</button> <button class="btn" id="helpclose">Close</button></p>
 </dialog>
 
 <dialog id="termsdlg">

@@ -1,6 +1,6 @@
 # Arrange Terms of Service
 
-Version 1. Last updated November 14, 2026.
+Version 2. Last updated November 15, 2026.
 
 These terms are a license agreement between you and EchelonOne ("we", "us") for the Arrange app,
 including its updates. By installing or using Arrange you agree to them. If you don't agree, don't install
@@ -37,15 +37,18 @@ apps, data or settings.
 ## Your data
 
 Arrange works with your device locally on your computer and doesn't collect usage data. It contacts the
-internet only to check your license key with Polar (sending the key and your computer's name), and when
-you choose to open a link. Problem reports, feedback and error reports open as a GitHub issue in your
+internet only to check your license key with Polar (sending the key and your computer's name), when you
+choose to open a link, and when you use Organize by category. Organize by category sends the IDs of the
+apps being organized to Apple's App Store to look up their categories. If you set up an AI in Settings,
+it also sends the names and App Store categories of those apps, and any instructions you type, to the AI
+service you chose, under that service's own terms. Any API key you enter is stored only on your computer. Problem reports, feedback and error reports open as a GitHub issue in your
 browser; nothing is sent until you submit it there. Those issues are public, so leave out anything private.
 
 ## Other services
 
-Arrange relies on services we don't control: Apple's device software, Polar for purchases and license
-keys, and GitHub for downloads and reports. Their own terms apply when you use them, including Polar's
-terms for payment. We are not responsible for those services, and an Apple update may change or stop how
+Arrange relies on services we don't control: Apple's device software and App Store, Polar for purchases
+and license keys, GitHub for downloads and reports, and any AI service you choose to set up. Their own terms apply when you use them, including Polar's
+terms for payment. We are not responsible for those services or for the categories an AI suggests, and an Apple update may change or stop how
 Arrange works with your devices. We may change or stop the services Arrange uses at any time.
 
 ## No warranty

@@ -1,14 +1,17 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { app, BrowserWindow, ipcMain, protocol, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, shell, Menu, safeStorage } = require('electron');
 const { Backend } = require('./backend');
 const { License, LicenseError } = require('./license');
 const { ErrorLog, issueUrl } = require('./support');
 const { Updater } = require('./updater');
+const { AI } = require('./ai');
+const { appStoreGenres, categorize } = require('./categorize');
+const { demoGenres } = require('./demo');
 
 // Bump when the Terms of Service change, so everyone is asked to agree to the new version.
-const TERMS_VERSION = 1;
+const TERMS_VERSION = 2;
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'appicon', privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -20,6 +23,7 @@ let win;
 let errorLog;
 let termsFile;
 let updater;
+let ai;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -96,6 +100,21 @@ const ROUTES = {
   update: () => updater.state,
   checkUpdates: () => updater.check(),
   installUpdate: () => updater.install(),
+  aiSettings: () => ai.settings(),
+  aiSave: (body) => ai.save(body || {}),
+  aiDetect: () => ai.detect(),
+  aiModels: (body) => ai.models(body && body.id),
+  aiTest: (body) => ai.test(body && body.id),
+  aiActive: () => ai.activeName(),
+  categorize: (body) => {
+    const apps = ((body && body.apps) || []).filter((a) => a && a.id).map((a) => ({ id: String(a.id), name: String(a.name || a.id) }));
+    if (!apps.length) throw new Error('There are no apps to organize.');
+    // The sample apps aren't in the App Store, so they bring their own genres.
+    const lookup = backend.demo
+      ? async () => demoGenres()
+      : (ids) => appStoreGenres(ids, { file: path.join(app.getPath('userData'), 'appstore-genres.json'), country: (app.getLocaleCountryCode() || 'us').toLowerCase() });
+    return categorize(apps, { lookup, ai: body.useAI && ai.activeName() ? ai : null, size: body.size, notes: body.notes });
+  },
 };
 
 process.on('uncaughtException', (e) => { console.error(e); if (errorLog) errorLog.record(e, 'main'); });
@@ -113,6 +132,11 @@ app.whenReady().then(() => {
   license = new License({ file: path.join(app.getPath('userData'), 'license.json') });
   errorLog = new ErrorLog({ file: path.join(app.getPath('userData'), 'errors.json') });
   termsFile = path.join(app.getPath('userData'), 'terms.json');
+  // API keys are encrypted with the system keychain when it's available.
+  const crypt = safeStorage.isEncryptionAvailable()
+    ? { encrypt: (s) => safeStorage.encryptString(s).toString('base64'), decrypt: (s) => safeStorage.decryptString(Buffer.from(s, 'base64')) }
+    : null;
+  ai = new AI({ file: path.join(app.getPath('userData'), 'ai.json'), crypt });
   updater = new Updater((state) => { if (win && !win.isDestroyed()) win.webContents.send('update', state); });
 
   ipcMain.handle('api', async (_e, route, body) => {
@@ -122,6 +146,13 @@ app.whenReady().then(() => {
       return { result: await fn(body) };
     } catch (e) {
       if (e instanceof LicenseError) return { error: e.message };
+      if (route.startsWith('ai') || route === 'categorize') {
+        // Not about the device, so don't reword it as a device problem.
+        errorLog.record(e, route);
+        const why = e && e.cause && (e.cause.code || e.cause.message);
+        if (e && e.name === 'TimeoutError') return { error: 'The AI took too long to answer. Try again, or try a faster model.' };
+        return { error: e && e.message === 'fetch failed' ? `Could not reach the AI service${why ? ` (${why})` : ''}. Check the address and your internet connection.` : String((e && e.message) || e) };
+      }
       const { friendly } = require('./device');
       console.error(e);
       errorLog.record(e, route);
@@ -138,7 +169,20 @@ app.whenReady().then(() => {
 
   if (process.platform === 'darwin') {
     Menu.setApplicationMenu(Menu.buildFromTemplate([
-      { role: 'appMenu' },
+      {
+        role: 'appMenu',
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => { if (win && !win.isDestroyed()) win.webContents.send('show', 'settings'); } },
+          { type: 'separator' },
+          { role: 'services' },
+          { type: 'separator' },
+          { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      },
       { role: 'editMenu' },
       { role: 'viewMenu' },
       { role: 'windowMenu' },
