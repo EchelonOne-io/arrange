@@ -3,12 +3,14 @@ const fs = require('fs');
 const path = require('path');
 const { app, BrowserWindow, ipcMain, protocol, shell, Menu } = require('electron');
 const { Backend } = require('./backend');
+const { License, LicenseError } = require('./license');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'appicon', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
 
 let backend;
+let license;
 let win;
 
 function createWindow() {
@@ -50,10 +52,19 @@ const ROUTES = {
   devices: () => backend.devices(),
   demo: (body) => backend.setDemo(body && body.on),
   load: (body) => backend.load(body || {}),
-  apply: (body) => backend.apply(body),
+  apply: async (body) => {
+    // The sample devices are free to try; a real device needs a license.
+    if (!backend.demo && !(await license.status()).licensed) {
+      return { needsLicense: true };
+    }
+    return backend.apply(body);
+  },
   backups: () => backend.backups(),
   restore: (body) => backend.restore(body),
   showBackups: () => { shell.openPath(backend.backupDir); return { ok: true }; },
+  license: (body) => license.status(body || {}),
+  activate: (body) => license.activate(body && body.key),
+  deactivate: () => license.deactivate(),
 };
 
 app.whenReady().then(() => {
@@ -65,6 +76,7 @@ app.whenReady().then(() => {
     iconDir: path.join(app.getPath('userData'), 'icon-cache'),
     demo: process.argv.includes('--demo'),
   });
+  license = new License({ file: path.join(app.getPath('userData'), 'license.json') });
 
   ipcMain.handle('api', async (_e, route, body) => {
     const fn = ROUTES[route];
@@ -72,6 +84,7 @@ app.whenReady().then(() => {
     try {
       return { result: await fn(body) };
     } catch (e) {
+      if (e instanceof LicenseError) return { error: e.message };
       const { friendly } = require('./device');
       console.error(e);
       return { error: friendly(e, backend.info ? backend.info.profile.label : undefined) };

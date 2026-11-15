@@ -114,6 +114,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <button class="btn" id="addpage" disabled>+ Page</button>
   <button class="btn" id="reload" title="Throw away unapplied changes and read the layout from the device again">Reload</button>
   <button class="btn" id="backups">Backups</button>
+  <button class="btn" id="licbtn">Buy / Enter key</button>
   <button class="btn primary" id="apply" disabled>Apply</button>
 </header>
 
@@ -172,6 +173,23 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <p class="hint" id="bkfolder"></p>
   <div id="bklist"></div>
   <p style="text-align:right;margin-bottom:0"><button class="btn" id="bkshow">Show in folder</button> <button class="btn" id="bkclose">Close</button></p>
+</dialog>
+
+<dialog id="licdlg">
+  <h3 style="margin-top:0" id="lictitle">Unlock Arrange</h3>
+  <div id="licoff">
+    <p class="hint" style="font-size:13px">Arranging, sorting and the sample devices are free. Applying a layout to your own iPhone or iPad needs a license key.</p>
+    <p class="hint" style="font-size:13px">After you buy, the key arrives by email. Paste it here:</p>
+    <input class="folder-name mono" id="lickey" placeholder="License key" autocomplete="off" spellcheck="false">
+    <p class="hint" id="licerr" style="color:var(--danger)" hidden></p>
+    <p style="text-align:right;margin-bottom:0"><button class="btn" id="licbuy">Buy a license</button> <button class="btn" id="licclose">Not now</button> <button class="btn primary" id="licgo">Activate</button></p>
+  </div>
+  <div id="licon" hidden>
+    <p class="hint" style="font-size:13px">This computer is licensed<span id="licshown"></span>. Thank you!</p>
+    <p class="hint">Moving to a new computer? Deactivate here first to free up this activation.</p>
+    <p class="hint" id="licerr2" style="color:var(--danger)" hidden></p>
+    <p style="text-align:right;margin-bottom:0"><button class="btn" id="licdeact">Deactivate on this computer</button> <button class="btn primary" id="licdone">Done</button></p>
+  </div>
 </dialog>
 
 <script src="app.js"></script>
