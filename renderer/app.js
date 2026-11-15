@@ -724,7 +724,7 @@ function renderSettings(){
       <div class="mlist" id="mlist"></div>
     </div>` : ''}
     <div class="row"><button class="btn" id="settest"${isReady === false && p.kind === 'cli' ? ' disabled' : ''}>Test</button>${inUse ? '' : `<button class="btn primary" id="setuse"${isReady === false ? ` disabled title="${p.kind === 'cli' ? 'Install it first' : 'Add a key and choose a model first'}"` : ''}>Use for organizing</button>`}<span id="setmsg" class="hint" style="margin:0"></span></div>
-    ${p.kind === 'cli' ? `<p class="hint" style="margin:0">Runs <span class="mono">${esc(p.command)}</span> with tools turned off, in an empty folder. Only app names, their App Store categories and anything you type in Organize are sent, when you press Suggest categories.</p>` : '<p class="hint" style="margin:0">Only app names, their App Store categories and anything you type in Organize are sent, when you press Suggest categories.</p>'}`;
+    ${p.kind === 'cli' ? `<p class="hint" style="margin:0">Runs <span class="mono">${esc(p.command)}</span> with tools turned off, in an empty folder. When you press Suggest categories, it gets app names, their App Store categories, and the options and instructions you set in Organize.</p>` : '<p class="hint" style="margin:0">When you press Suggest categories, it gets app names, their App Store categories, and the options and instructions you set in Organize.</p>'}`;
   if($('#mfilter')) $('#mfilter').value = keepFilter;
   bindSettings();
 }
