@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Rearrange your iPhone or iPad Home Screen from your computer over USB.",
   "main": "src/main.js",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "start": "electron .",

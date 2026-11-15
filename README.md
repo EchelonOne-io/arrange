@@ -24,6 +24,9 @@ Try it without a device: click **Try it with a sample device** and pick the samp
    **Trust** on the iPad. On Windows, install the **Apple Devices** app from the Microsoft Store first.
 4. The Home Screen appears. Rearrange, then press **Apply to iPad**.
 
+Rearranging and the sample devices are free. Applying to your own device needs a license key: click
+**Buy / Enter key**, buy one, and paste the key from your purchase email.
+
 ## For developers
 
 ```
@@ -35,6 +38,10 @@ npm run dist:mac   # build a .dmg (run on a Mac)
 npm run dist:mac:signed  # build a signed + notarized .dmg (see Signing below)
 npm run dist:win   # build a Windows installer (run on Windows)
 ```
+
+**License keys:** sold through [Polar](https://polar.sh). Set the organization ID and checkout link at the
+top of `src/license.js`. To test against Polar's sandbox, run with `ARRANGE_POLAR_SANDBOX=1
+ARRANGE_POLAR_ORG_ID=<sandbox org id> npm start`.
 
 **Releasing:** on GitHub, go to Releases → **Draft a new release**, create a tag like `v1.2.0`, and
 publish. The workflow in `.github/workflows/build.yml` builds, signs and notarizes the Mac app, uses the tag

@@ -289,12 +289,43 @@ async function apply(){
   const btn = $('#apply'); btn.disabled = true; btn.textContent = 'Applying…';
   try{
     const r = await api('apply', {tree: buildTree()});
+    if(r.needsLicense){ showLicense(); return; }
     toast(r.message + (r.ok ? '' : ` (${r.matched} of ${r.total} items landed exactly where you put them.)`), r.ok ? 'ok' : 'err', 12000);
     dirty = false;
     setTimeout(() => load(device?.udid, true), r.ok ? 300 : 600);
   }catch(e){ toast(e.message, 'err', 12000); }
   finally{ btn.textContent = `Apply to ${profile.label}`; btn.disabled = false; }
 }
+// ---------- license ----------
+let lic = {licensed:false, buyUrl:null};
+function setLicense(l){
+  lic = l;
+  $('#licbtn').textContent = l.licensed ? 'License' : 'Buy / Enter key';
+  $('#licon').hidden = !l.licensed; $('#licoff').hidden = l.licensed;
+  $('#lictitle').textContent = l.licensed ? 'License' : 'Unlock Arrange';
+  $('#licshown').textContent = l.displayKey ? ` (key ${l.displayKey})` : '';
+  $('#licerr').hidden = $('#licerr2').hidden = true;
+}
+function showLicense(){ setLicense(lic); $('#lickey').value = ''; $('#licdlg').showModal(); if(!lic.licensed) $('#lickey').focus(); }
+async function busy(btn, label, fn, errEl){
+  const old = btn.textContent; btn.disabled = true; btn.textContent = label;
+  try{ await fn(); }
+  catch(e){ errEl.textContent = e.message; errEl.hidden = false; }
+  finally{ btn.disabled = false; btn.textContent = old; }
+}
+$('#licbtn').onclick = showLicense;
+$('#licclose').onclick = $('#licdone').onclick = () => $('#licdlg').close();
+$('#licbuy').onclick = () => { if(lic.buyUrl) window.open(lic.buyUrl); };
+$('#licgo').onclick = () => busy($('#licgo'), 'Activating…', async () => {
+  setLicense(await api('activate', {key: $('#lickey').value}));
+  $('#licdlg').close(); toast('Activated. You can apply layouts to your devices now.', 'ok');
+}, $('#licerr'));
+$('#lickey').onkeydown = e => { if(e.key === 'Enter') $('#licgo').click(); };
+$('#licdeact').onclick = () => busy($('#licdeact'), 'Deactivating…', async () => {
+  setLicense(await api('deactivate')); toast('Deactivated on this computer.', 'ok');
+}, $('#licerr2'));
+api('license').then(l => { setLicense(l); if(l.revoked) toast('Your license key is no longer valid, so applying to a device is locked again.', 'err', 12000); }).catch(() => {});
+
 async function showBackups(){
   const r = await api('backups');
   $('#bkfolder').textContent = `Saved in ${r.folder}`;
