@@ -541,7 +541,7 @@ function readPlan(){
 function showPlan(){
   const icon = id => { for(const n of Object.values(nodes)) if(n.id === id && n.icon) return n.icon; return ''; };
   const name = id => { for(const n of Object.values(nodes)) if(n.id === id) return n.name; return id; };
-  const chip = id => `<span class="chip" data-id="${esc(id)}" title="Drag to another category"><i style="${iconStyle({icon:icon(id)})}"></i>${esc(name(id))}</span>`;
+  const chip = id => `<button type="button" class="chip" data-id="${esc(id)}" aria-haspopup="menu" title="Drag to another category, or click to choose one"><i style="${iconStyle({icon:icon(id)})}"></i>${esc(name(id))}</button>`;
   planSummary();
   $('#orgcats').innerHTML = orgGroups.map((g,i) => `<div class="cat"><div class="cat-head"><input data-cat="${i}" value="${esc(g.name)}" maxlength="30" aria-label="Category name"><span>${g.ids.length}</span></div>
     <div class="chips" data-chips="${i}">${g.ids.map(chip).join('')}</div></div>`).join('')
@@ -556,6 +556,7 @@ function showPlan(){
     onStart: () => $('#orgcats').classList.add('dragging'),
     onMove: evt => { mark(evt.to); },
     onEnd: evt => {
+      dragEnded = Date.now(); // the mouse-up after a drag also counts as a click; don't open the menu for it
       mark(null); $('#orgcats').classList.remove('dragging');
       const made = evt.to.dataset.chips === 'new';
       readPlan();
@@ -566,6 +567,51 @@ function showPlan(){
   }));
   $('#orgstep1').hidden = true; $('#orgstep2').hidden = false;
 }
+// Moving an app without dragging: click it (or press Enter on it) and pick a category.
+let dragEnded = 0;
+function moveApp(id, to){
+  orgGroups.forEach(g => { g.ids = g.ids.filter(x => x !== id); });
+  if(to === 'new') orgGroups.push({name:'New Category', ids:[id], fresh:true});
+  else orgGroups[+to].ids.push(id);
+  showPlan();
+  if(to !== 'new') $(`#orgcats .chip[data-id="${CSS.escape(id)}"]`)?.focus();
+}
+function closeChipMenu(refocus){
+  const m = $('#chipmenu'); if(m.hidden) return;
+  m.hidden = true;
+  if(refocus) $(`#orgcats .chip[data-id="${CSS.escape(m.dataset.id)}"]`)?.focus();
+}
+function openChipMenu(chipEl){
+  const id = chipEl.dataset.id;
+  const from = +chipEl.parentElement.dataset.chips;
+  const m = $('#chipmenu');
+  m.dataset.id = id;
+  m.innerHTML = `<div class="chipmenu-head">Move ${esc(chipEl.textContent)} to</div>`
+    + orgGroups.map((g,i) => i === from ? '' : `<button type="button" role="menuitem" data-to="${i}">${esc(g.name)}</button>`).join('')
+    + `<button type="button" role="menuitem" data-to="new">+ New category</button>`;
+  m.hidden = false;
+  const r = chipEl.getBoundingClientRect();
+  const h = m.offsetHeight;
+  m.style.left = Math.min(r.left, innerWidth - m.offsetWidth - 8) + 'px';
+  m.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+  m.querySelector('[data-to]').focus();
+}
+$('#orgcats').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if(!c || Date.now() - dragEnded < 300) return;
+  openChipMenu(c);
+});
+$('#chipmenu').addEventListener('click', e => { const b = e.target.closest('[data-to]'); if(b){ $('#chipmenu').hidden = true; moveApp($('#chipmenu').dataset.id, b.dataset.to); } });
+$('#chipmenu').addEventListener('keydown', e => {
+  const items = [...$('#chipmenu').querySelectorAll('[data-to]')];
+  const i = items.indexOf(document.activeElement);
+  if(e.key === 'ArrowDown'){ e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  if(e.key === 'ArrowUp'){ e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeChipMenu(true); }
+  if(e.key === 'Tab') closeChipMenu(false);
+});
+document.addEventListener('mousedown', e => { if(!e.target.closest('#chipmenu')) closeChipMenu(false); });
+$('#orgcats').addEventListener('scroll', () => closeChipMenu(false));
+$('#orgdlg').addEventListener('close', () => closeChipMenu(false));
 $('#organize').onclick = showOrganize;
 $('#orgcancel').onclick = () => $('#orgdlg').close();
 $('#orggo').onclick = suggestCategories;
@@ -678,7 +724,7 @@ function renderSettings(){
       <div class="mlist" id="mlist"></div>
     </div>` : ''}
     <div class="row"><button class="btn" id="settest"${isReady === false && p.kind === 'cli' ? ' disabled' : ''}>Test</button>${inUse ? '' : `<button class="btn primary" id="setuse"${isReady === false ? ` disabled title="${p.kind === 'cli' ? 'Install it first' : 'Add a key and choose a model first'}"` : ''}>Use for organizing</button>`}<span id="setmsg" class="hint" style="margin:0"></span></div>
-    ${p.kind === 'cli' ? `<p class="hint" style="margin:0">Runs <span class="mono">${esc(p.command)}</span> with tools turned off, in an empty folder. Only app names and their App Store categories are sent, when you press Suggest categories.</p>` : '<p class="hint" style="margin:0">Only app names and their App Store categories are sent, when you press Suggest categories.</p>'}`;
+    ${p.kind === 'cli' ? `<p class="hint" style="margin:0">Runs <span class="mono">${esc(p.command)}</span> with tools turned off, in an empty folder. Only app names, their App Store categories and anything you type in Organize are sent, when you press Suggest categories.</p>` : '<p class="hint" style="margin:0">Only app names, their App Store categories and anything you type in Organize are sent, when you press Suggest categories.</p>'}`;
   if($('#mfilter')) $('#mfilter').value = keepFilter;
   bindSettings();
 }

@@ -186,6 +186,12 @@ dialog.org{max-width:760px}
 .cat.new .cat-head span{margin-left:auto}
 .cats.dragging .cat.new{border-color:var(--accent)}
 .chip:hover{border-color:var(--muted)}
+.chip{font:inherit;font-size:12px;color:inherit}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chipmenu{position:fixed;z-index:5;min-width:180px;max-height:300px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:4px;display:flex;flex-direction:column}
+.chipmenu-head{font-size:11px;color:var(--muted);padding:6px 8px 4px}
+.chipmenu button{text-align:left;border:0;background:none;border-radius:6px;padding:6px 8px;cursor:pointer}
+.chipmenu button:hover,.chipmenu button:focus{background:rgba(47,109,246,.14);outline:none}
 .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:2px 9px 2px 3px;font-size:12px;cursor:grab;user-select:none}
 .chip i{width:20px;height:20px;border-radius:5px;background:#5a6176 center/cover no-repeat;flex:none}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px}
@@ -327,7 +333,7 @@ dialog.org{max-width:760px}
       <label for="orgnotes">Anything the AI should know? <span class="hint" style="font-weight:400">(optional)</span></label>
       <input id="orgnotes" maxlength="500" placeholder="For example: put the kids' apps together, and keep work apps separate">
     </div>
-    <p class="hint">The Dock and widgets stay where they are. App names and IDs are sent to Apple's App Store to look up their categories<span id="orgaiprivacy">, and to the AI you chose</span>. Nothing else is sent.</p>
+    <p class="hint">The Dock and widgets stay where they are. App IDs are sent to Apple's App Store to look up their categories.<span id="orgaiprivacy"> App names, their App Store categories, and anything you type above are sent to the AI you chose.</span> Nothing else is sent.</p>
     <p class="hint err-text" id="orgerr" hidden></p>
     <p style="text-align:right;margin-bottom:0"><button class="btn" id="orgcancel">Cancel</button> <button class="btn primary" id="orggo">Suggest categories</button></p>
   </div>
@@ -335,7 +341,8 @@ dialog.org{max-width:760px}
     <h3 style="margin-top:0">Here's the plan</h3>
     <p class="hint" id="orgsummary" style="margin-top:-6px"></p>
     <div class="cats" id="orgcats"></div>
-    <p class="hint"><b>Drag apps between categories</b>, or click a name to rename it. Nothing changes on your device until you press Apply, and Undo puts everything back.</p>
+    <div class="chipmenu" id="chipmenu" role="menu" hidden></div>
+    <p class="hint"><b>Drag apps between categories</b> (or click one to pick where it goes), and click a name to rename it. Nothing changes on your device until you press Apply, and Undo puts everything back.</p>
     <p style="text-align:right;margin-bottom:0"><button class="btn" id="orgback">Back</button> <button class="btn" id="orgagain">Try again</button> <button class="btn primary" id="orgapply">Arrange my Home Screen</button></p>
   </div>
 </dialog>
