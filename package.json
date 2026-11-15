@@ -24,7 +24,7 @@
   "build": {
     "appId": "io.echelonone.arrange",
     "productName": "Arrange",
-    "files": ["src/**", "renderer/**", "package.json", "!node_modules/sharp/**", "!node_modules/@img/**"],
+    "files": ["src/**", "renderer/**", "package.json", "TERMS.md", "!node_modules/sharp/**", "!node_modules/@img/**"],
     "directories": { "buildResources": "build", "output": "dist" },
     "mac": {
       "category": "public.app-category.utilities",

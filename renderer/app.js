@@ -405,6 +405,42 @@ $('#folderUnpack').onclick = () => { pushUndo(); const f = nodes[openFolder]; S.
 $('#folderClose').onclick = () => { openFolder = null; syncFromDOM(); render(); };
 window.addEventListener('beforeunload', e => { if(dirty) { e.preventDefault(); e.returnValue = ''; } });
 
+// ---------- help & terms ----------
+window.addEventListener('error', e => api('logError', {message: e.message, stack: e.error && e.error.stack}).catch(() => {}));
+window.addEventListener('unhandledrejection', e => api('logError', {message: String(e.reason && e.reason.message || e.reason), stack: e.reason && e.reason.stack}).catch(() => {}));
+async function showHelp(){
+  const n = await api('errorCount').catch(() => 0);
+  $('#errcount').textContent = n ? `${n} recent error${n===1?'':'s'} from the app, with your app and system versions.` : 'No errors recorded. Sends your app and system versions.';
+  $('#clearerrs').hidden = !n;
+  $('#helpdlg').showModal();
+}
+document.querySelectorAll('[data-help]').forEach(b => b.onclick = () => api('help', {kind: b.dataset.help}).catch(e => toast(e.message, 'err')));
+$('#helpbtn').onclick = showHelp;
+$('#helpclose').onclick = () => $('#helpdlg').close();
+$('#clearerrs').onclick = async () => { await api('clearErrors'); showHelp(); };
+// TERMS.md is the single source: "## " starts a section, blank lines separate paragraphs.
+function termsHTML(md){
+  return md.split(/\n\s*\n/).map(b => b.trim()).filter(b => b && !b.startsWith('# '))
+    .map(b => b.startsWith('## ') ? `<h4>${esc(b.slice(3))}</h4>` : `<p>${esc(b.replace(/\n/g, ' '))}</p>`).join('');
+}
+async function showTerms(mustAgree){
+  const t = await api('terms');
+  $('#termstext').innerHTML = termsHTML(t.text);
+  $('#termsask').hidden = $('#termsfirst').hidden = !mustAgree;
+  $('#termslater').hidden = !!mustAgree;
+  $('#helpdlg').close();
+  $('#termsdlg').showModal();
+  $('#termstext').scrollTop = 0;
+}
+$('#helpterms').onclick = () => showTerms(false);
+$('#termsclose').onclick = () => $('#termsdlg').close();
+$('#termsagree').onclick = async () => { await api('acceptTerms'); $('#termsdlg').close(); };
+$('#termsquit').onclick = () => api('quit');
+// Until the terms are accepted, Escape must not dismiss them.
+$('#termsdlg').addEventListener('cancel', e => { if(!$('#termsfirst').hidden) e.preventDefault(); });
+window.organizer.onShow(what => { if(what === 'terms' && !$('#termsdlg').open) showTerms(false); });
+api('terms').then(t => { if(!t.accepted) showTerms(true); }).catch(() => {});
+
 resetProfile();
 if(typeof Sortable === 'undefined') toast('Could not load the drag-and-drop library.', 'err', 20000);
 scan();
