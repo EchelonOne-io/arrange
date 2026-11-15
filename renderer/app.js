@@ -5,7 +5,7 @@ const WIDGET_CELLS = {icon:1, small:4, medium:8, large:16, extralarge:24};
 const $ = s => document.querySelector(s);
 
 let nodes = {};      // uid -> {uid, kind, name, id, icon, size, pages:[[uid]] (folders)}
-let S = null;        // {dock:[uid], pages:[[uid]], shelf:[uid], hidden:[uid]}
+let S = null;        // {dock:[uid], pages:[[uid]], shelf:[uid], hidden:[uid], names:[page name] (from Organize, only shown here)}
 let openFolder = null;
 let selected = new Set();
 let undoStack = [], redoStack = [];
@@ -73,7 +73,7 @@ async function load(udid, quiet){
     device = r.device;
     applyProfile(device.profile || DEFAULT_PROFILE);
     nodes = {}; openFolder = null; selected.clear(); undoStack = []; redoStack = []; dirty = false;
-    S = { dock: ingest(r.tree.dock), pages: r.tree.pages.map(p => ingest(p)), shelf: [], hidden: ingest(r.tree.library || []) };
+    S = { dock: ingest(r.tree.dock), pages: r.tree.pages.map(p => ingest(p)), shelf: [], hidden: ingest(r.tree.library || []), names: [] };
     if(!S.pages.length) S.pages.push([]);
     $('#dot').classList.add('on');
     $('#devname').textContent = `${device.name || profile.label}${device.ios ? ` · ${profile.os} ${device.ios}` : ''}`;
@@ -125,7 +125,8 @@ function render(){
   S.pages.forEach((p, i) => {
     const used = p.reduce((a,u) => a + cells(u), 0);
     const over = used > profile.cells;
-    html += `<section class="page"><div class="page-head"><b>Page ${i+1}</b><span class="${over?'full':''}">${p.length} item${p.length===1?'':'s'}${over?` · more than fits, ${profile.os} will spill the rest to the next page`:''}</span><span class="spacer"></span>
+    const pname = S.names && S.names[i] ? ` · ${esc(S.names[i])}` : '';
+    html += `<section class="page"><div class="page-head"><b>Page ${i+1}${pname}</b><span class="${over?'full':''}">${p.length} item${p.length===1?'':'s'}${over?` · more than fits, ${profile.os} will spill the rest to the next page`:''}</span><span class="spacer"></span>
       <button class="btn small" data-act="sortpage" data-i="${i}">A–Z</button>
       ${p.length===0 && S.pages.length>1 ? `<button class="btn small" data-act="delpage" data-i="${i}">Remove</button>`:''}</div>
       <div class="grid" data-c="page:${i}">${p.map(tileHTML).join('')}</div></section>`;
@@ -215,7 +216,7 @@ function applySearch(){
 }
 function updateButtons(){
   const loaded = !!S;
-  ['#apply','#sortall','#addpage'].forEach(s => $(s).disabled = !loaded);
+  ['#apply','#sortall','#addpage','#organize'].forEach(s => $(s).disabled = !loaded);
   $('#undo').disabled = !undoStack.length; $('#redo').disabled = !redoStack.length;
   const bar = $('#selbar');
   bar.classList.toggle('show', selected.size > 0);
@@ -237,6 +238,7 @@ function sortAll(){
     pages[i].push(u);
   }
   S.pages = pages.filter((p, idx) => p.length || idx === 0);
+  S.names = [];
   render(); toast('Sorted A to Z across your pages. Widgets stayed on their pages.', 'ok');
 }
 function moveSelected(target){
@@ -287,26 +289,32 @@ async function apply(){
   if(removing && !confirm(`${removing} app(s) will come off your pages and go into the "App Library" folders on the last page. Continue?`)) return;
   if(S.shelf.length && !confirm(`${S.shelf.length} item(s) are still on the shelf. They will go onto a new last page. Continue?`)) return;
   const btn = $('#apply'); btn.disabled = true; btn.textContent = 'Applying…';
+  $('#organize').disabled = true; // its result would be thrown away by the reload after applying
+  const names = S.names || [];
   try{
     const r = await api('apply', {tree: buildTree()});
     if(r.needsLicense){ showLicense(); return; }
     toast(r.message + (r.ok ? '' : ` (${r.matched} of ${r.total} items landed exactly where you put them.)`), r.ok ? 'ok' : 'err', 12000);
     dirty = false;
-    setTimeout(() => load(device?.udid, true), r.ok ? 300 : 600);
+    // Page names are only shown here (iOS pages have none), so carry them over when the pages came back as sent.
+    setTimeout(async () => { await load(device?.udid, true); if(r.ok && S && S.pages.length === names.length){ S.names = names; render(); } }, r.ok ? 300 : 600);
   }catch(e){ toast(e.message, 'err', 12000); }
-  finally{ btn.textContent = `Apply to ${profile.label}`; btn.disabled = false; }
+  finally{ btn.textContent = `Apply to ${profile.label}`; btn.disabled = false; updateButtons(); }
 }
 // ---------- license ----------
 let lic = {licensed:false, buyUrl:null};
 function setLicense(l){
   lic = l;
-  $('#licbtn').textContent = l.licensed ? 'License' : 'Buy / Enter key';
+  // Buying stays one click away in the toolbar until there's a license; after that it lives in Settings.
+  $('#licbtn').hidden = !!l.licensed;
+  $('#navlic').textContent = l.licensed ? '' : 'NOT ACTIVE';
   $('#licon').hidden = !l.licensed; $('#licoff').hidden = l.licensed;
   $('#lictitle').textContent = l.licensed ? 'License' : 'Unlock Arrange';
   $('#licshown').textContent = l.displayKey ? ` (key ${l.displayKey})` : '';
   $('#licerr').hidden = $('#licerr2').hidden = true;
 }
-function showLicense(){ setLicense(lic); $('#lickey').value = ''; $('#licdlg').showModal(); if(!lic.licensed) $('#lickey').focus(); }
+function showLicense(){ showSettings('page:license'); }
+function loadLicense(){ setLicense(lic); $('#lickey').value = ''; if(!lic.licensed) setTimeout(() => $('#lickey').focus(), 0); }
 async function busy(btn, label, fn, errEl){
   const old = btn.textContent; btn.disabled = true; btn.textContent = label;
   try{ await fn(); }
@@ -314,11 +322,10 @@ async function busy(btn, label, fn, errEl){
   finally{ btn.disabled = false; btn.textContent = old; }
 }
 $('#licbtn').onclick = showLicense;
-$('#licclose').onclick = $('#licdone').onclick = () => $('#licdlg').close();
 $('#licbuy').onclick = () => { if(lic.buyUrl) window.open(lic.buyUrl); };
 $('#licgo').onclick = () => busy($('#licgo'), 'Activating…', async () => {
   setLicense(await api('activate', {key: $('#lickey').value}));
-  $('#licdlg').close(); toast('Activated. You can apply layouts to your devices now.', 'ok');
+  toast('Activated. You can apply layouts to your devices now.', 'ok');
 }, $('#licerr'));
 $('#lickey').onkeydown = e => { if(e.key === 'Enter') $('#licgo').click(); };
 $('#licdeact').onclick = () => busy($('#licdeact'), 'Deactivating…', async () => {
@@ -326,16 +333,16 @@ $('#licdeact').onclick = () => busy($('#licdeact'), 'Deactivating…', async () 
 }, $('#licerr2'));
 api('license').then(l => { setLicense(l); if(l.revoked) toast('Your license key is no longer valid, so applying to a device is locked again.', 'err', 12000); }).catch(() => {});
 
-async function showBackups(){
+function showBackups(){ showSettings('page:backups'); }
+async function loadBackups(){
   const r = await api('backups');
   $('#bkfolder').textContent = `Saved in ${r.folder}`;
   $('#bklist').innerHTML = (r.backups||[]).map(b => `<div class="bk"><span class="mono">${esc(b.file)}</span><button class="btn small" data-file="${esc(b.file)}">Restore</button></div>`).join('') || '<p class="hint">No backups yet.</p>';
   $('#bklist').querySelectorAll('button').forEach(b => b.onclick = async () => {
     if(!confirm(`Put this saved layout back on the ${device ? profile.label : NEUTRAL}? Your current layout is backed up first.`)) return;
-    try{ await api('restore', {file: b.dataset.file}); bkdlg.close(); toast('Restored. Reloading…', 'ok'); setTimeout(() => load(device?.udid), 1200); }
+    try{ await api('restore', {file: b.dataset.file}); $('#setdlg').close(); toast('Restored. Reloading…', 'ok'); setTimeout(() => load(device?.udid), 1200); }
     catch(e){ toast(e.message, 'err', 10000); }
   });
-  bkdlg.showModal();
 }
 
 // ---------- events ----------
@@ -344,7 +351,7 @@ document.addEventListener('click', e => {
   if(act){
     const i = +act.dataset.i; pushUndo();
     if(act.dataset.act === 'sortpage') S.pages[i] = sortList(S.pages[i]);
-    if(act.dataset.act === 'delpage') S.pages.splice(i, 1);
+    if(act.dataset.act === 'delpage'){ S.pages.splice(i, 1); if(S.names) S.names.splice(i, 1); }
     render(); return;
   }
   const t = e.target.closest('.tile');
@@ -382,11 +389,9 @@ $('#leavedemo').onclick = async () => {
   await api('demo', {on:false}); $('#leavedemo').hidden = true; S = null; device = null; autoOpened = false; resetProfile(); showWelcome(); scan();
 };
 $('#bkshow').onclick = () => api('showBackups');
-$('#bkclose').onclick = () => bkdlg.close();
 // keep looking while nothing is open, so plugging in "just works"
 setInterval(() => { if(!S && !document.hidden && !scanning) scan(true); }, 3000);
 $('#apply').onclick = apply;
-$('#backups').onclick = showBackups;
 $('#search').oninput = applySearch;
 $('#mkfolder').onclick = makeFolder;
 $('#toshelf').onclick = () => moveSelected('shelf');
@@ -405,19 +410,413 @@ $('#folderUnpack').onclick = () => { pushUndo(); const f = nodes[openFolder]; S.
 $('#folderClose').onclick = () => { openFolder = null; syncFromDOM(); render(); };
 window.addEventListener('beforeunload', e => { if(dirty) { e.preventDefault(); e.returnValue = ''; } });
 
+// ---------- organize by category ----------
+let orgGroups = null; // [{name, ids:[bundle id]}] while the plan is shown
+let orgBy = null;
+let orgInclude = true; // the "include apps in folders" choice the plan was made with
+let orgSortables = [];
+let aiActive = null;  // "Claude Code (haiku)" or null
+
+/** Apps that Organize moves: everything on the pages and the shelf, and inside folders if asked. */
+function organizableApps(includeFolders){
+  const out = [];
+  const take = list => list.forEach(u => {
+    const n = nodes[u];
+    if(n.kind === 'app' && n.id) out.push(u);
+    else if(n.kind === 'folder' && includeFolders) n.pages.flat().forEach(c => { if(nodes[c].kind === 'app' && nodes[c].id) out.push(c); });
+  });
+  S.pages.forEach(take); take(S.shelf);
+  return out;
+}
+/** Splits items into pages without going over the page size; each call starts on a new page. */
+function packPages(items){
+  const pages = [[]]; let used = 0;
+  for(const u of items){
+    const c = cells(u);
+    if(used + c > profile.cells && pages[pages.length-1].length){ pages.push([]); used = 0; }
+    pages[pages.length-1].push(u); used += c;
+  }
+  return pages;
+}
+function arrangeByCategory(groups, mode, includeFolders){
+  pushUndo();
+  const moving = new Set(organizableApps(includeFolders));
+  const uidsById = {};
+  for(const u of moving) (uidsById[nodes[u].id] ||= []).push(u);
+  // What stays: widgets, other items, and folders that aren't being emptied, in their current order.
+  // Kept page by page, so a widget on page 3 stays apart from one on page 1 instead of being merged forward.
+  const kept = u => {
+    const n = nodes[u];
+    if(moving.has(u)) return false;
+    if(n.kind === 'folder' && includeFolders){ n.pages.forEach(p => { for(let i=p.length-1;i>=0;i--) if(moving.has(p[i])) p.splice(i,1); }); if(!n.pages.flat().length) return false; }
+    return true;
+  };
+  const keepPages = [...S.pages, S.shelf].map(p => p.filter(kept)).filter(p => p.length);
+  // Folders the person had are now empty; drop them from every list (and from their parent folder pages).
+  for(const u of moving) removeEverywhere(u);
+  const placed = new Set();
+  const sections = groups.map(g => {
+    const uids = g.ids.flatMap(id => uidsById[id] || []).filter(u => !placed.has(u) && (placed.add(u), true));
+    return {name: g.name, uids: uids.sort(byName)};
+  }).filter(s => s.uids.length);
+  const left = [...moving].filter(u => !placed.has(u)).sort(byName);
+  if(left.length) sections.push({name:'Other', uids:left});
+
+  const pages = []; const names = [];
+  const addPages = (items, name) => packPages(items).forEach(p => { if(p.length){ pages.push(p); names.push(name); } });
+  keepPages.forEach(p => addPages(p, ''));
+  if(mode === 'folders'){
+    const tiles = sections.map(s => {
+      if(s.uids.length < 2) return s.uids[0];
+      const uid = 'new' + (++newId);
+      const fp = []; for(let i=0;i<s.uids.length;i+=9) fp.push(s.uids.slice(i,i+9));
+      nodes[uid] = {uid, kind:'folder', name:s.name.slice(0,64), pages:fp};
+      return uid;
+    });
+    // Folders go after what was kept, filling the last kept page first.
+    const last = pages.length ? pages.pop() : [];
+    if(names.length) names.pop();
+    addPages([...last, ...tiles], '');
+  } else {
+    sections.forEach(s => addPages(s.uids, s.name));
+  }
+  S.pages = pages.length ? pages : [[]];
+  S.names = names;
+  S.shelf = [];
+  selected.clear(); openFolder = null;
+  render();
+  const what = mode === 'folders' ? `${sections.filter(s => s.uids.length > 1).length} folders` : `${sections.length} categories across ${pages.length} pages`;
+  toast(`Arranged into ${what}. Press Apply to ${profile.label} when it looks right, or Undo to go back.`, 'ok', 9000);
+}
+
+async function refreshAIActive(){ aiActive = await api('aiActive').catch(() => null); }
+async function showOrganize(){
+  await refreshAIActive();
+  $('#orgai').innerHTML = aiActive
+    ? `<label class="row" style="gap:6px"><input type="checkbox" id="orguseai" checked> Sort with <b>${esc(aiActive)}</b></label>`
+    : `<b>No AI set up.</b> Apps are grouped by their App Store category. <span class="hint">Set up AI for smarter groups like Kids or Work.</span>`;
+  $('#orgaiset').textContent = aiActive ? 'Change…' : 'Set up AI…';
+  const syncAI = () => { const on = !!aiActive && $('#orguseai')?.checked; $('#orgnotesrow').hidden = !on; $('#orgaiprivacy').hidden = !on; };
+  if($('#orguseai')) $('#orguseai').onchange = syncAI;
+  syncAI();
+  $('#orgerr').hidden = true;
+  $('#orgstep1').hidden = false; $('#orgstep2').hidden = true;
+  $('#orgdlg').showModal();
+}
+async function suggestCategories(){
+  const includeFolders = $('#orgfolders').checked;
+  orgInclude = includeFolders;
+  const uids = organizableApps(includeFolders);
+  const seen = new Set();
+  const apps = uids.map(u => nodes[u]).filter(n => !seen.has(n.id) && (seen.add(n.id), true)).map(n => ({id:n.id, name:n.name}));
+  if(apps.length < 2){ $('#orgerr').textContent = 'There aren\'t enough apps on your pages to organize.'; $('#orgerr').hidden = false; return; }
+  const useAI = !!aiActive && !!$('#orguseai')?.checked;
+  const btn = $('#orggo'); const again = $('#orgagain');
+  btn.disabled = again.disabled = true;
+  btn.innerHTML = `<span class="spin"></span> ${useAI ? 'Asking the AI… this can take a minute' : 'Looking up categories…'}`;
+  $('#orgerr').hidden = true;
+  try{
+    const r = await api('categorize', {apps, useAI, size: $('#orgsize').value, notes: $('#orgnotes').value.trim()});
+    orgGroups = r.groups; orgBy = r.by;
+    showPlan();
+  }catch(e){
+    $('#orgstep1').hidden = false; $('#orgstep2').hidden = true;
+    $('#orgerr').textContent = e.message; $('#orgerr').hidden = false;
+  }finally{ btn.disabled = again.disabled = false; btn.textContent = 'Suggest categories'; }
+}
+function planSummary(){
+  const mode = document.querySelector('input[name=orgmode]:checked').value;
+  const used = orgGroups.filter(g => g.ids.length);
+  const total = used.reduce((a,g) => a + g.ids.length, 0);
+  $('#orgsummary').textContent = `${total} apps in ${used.length} categories, ${mode === 'folders' ? 'each in a folder' : 'each on its own page'}. ${orgBy === 'ai' ? `Sorted by ${aiActive}.` : 'Grouped by App Store category.'}`;
+}
+/** Reads the categories back from the chips after a drag. Dropping on "New category" makes one. */
+function readPlan(){
+  $('#orgcats').querySelectorAll('[data-chips]').forEach(c => {
+    const ids = [...c.children].map(x => x.dataset.id).filter(Boolean);
+    if(c.dataset.chips === 'new'){ if(ids.length) orgGroups.push({name:'New Category', ids, fresh:true}); }
+    else orgGroups[+c.dataset.chips].ids = ids;
+  });
+}
+function showPlan(){
+  const icon = id => { for(const n of Object.values(nodes)) if(n.id === id && n.icon) return n.icon; return ''; };
+  const name = id => { for(const n of Object.values(nodes)) if(n.id === id) return n.name; return id; };
+  const chip = id => `<button type="button" class="chip" data-id="${esc(id)}" aria-haspopup="menu" title="Drag to another category, or click to choose one"><i style="${iconStyle({icon:icon(id)})}"></i>${esc(name(id))}</button>`;
+  planSummary();
+  $('#orgcats').innerHTML = orgGroups.map((g,i) => `<div class="cat"><div class="cat-head"><input data-cat="${i}" value="${esc(g.name)}" maxlength="30" aria-label="Category name"><span>${g.ids.length}</span></div>
+    <div class="chips" data-chips="${i}">${g.ids.map(chip).join('')}</div></div>`).join('')
+    + `<div class="cat new"><div class="cat-head"><b>+ New category</b><span>Drag apps here to start one</span></div><div class="chips" data-chips="new"></div></div>`;
+  $('#orgcats').querySelectorAll('input[data-cat]').forEach(inp => inp.oninput = () => { orgGroups[+inp.dataset.cat].name = inp.value.trim() || 'Other'; });
+  const fresh = orgGroups.findIndex(g => g.fresh);
+  if(fresh >= 0){ delete orgGroups[fresh].fresh; const inp = $(`#orgcats input[data-cat="${fresh}"]`); inp.scrollIntoView({block:'nearest'}); inp.focus(); inp.select(); }
+  orgSortables.forEach(s => s.destroy());
+  const mark = el => $('#orgcats').querySelectorAll('.cat').forEach(c => c.classList.toggle('drop', !!el && c.contains(el)));
+  orgSortables = [...$('#orgcats').querySelectorAll('[data-chips]')].map(el => new Sortable(el, {
+    group:'cats', animation:120, forceFallback:true, fallbackTolerance:3, emptyInsertThreshold:24,
+    onStart: () => $('#orgcats').classList.add('dragging'),
+    onMove: evt => { mark(evt.to); },
+    onEnd: evt => {
+      dragEnded = Date.now(); // the mouse-up after a drag also counts as a click; don't open the menu for it
+      mark(null); $('#orgcats').classList.remove('dragging');
+      const made = evt.to.dataset.chips === 'new';
+      readPlan();
+      if(made){ setTimeout(showPlan, 0); return; } // rebuild after Sortable finishes this drop
+      $('#orgcats').querySelectorAll('.cat:not(.new)').forEach((c,i) => { c.querySelector('.cat-head span').textContent = orgGroups[i].ids.length; });
+      planSummary();
+    },
+  }));
+  $('#orgstep1').hidden = true; $('#orgstep2').hidden = false;
+}
+// Moving an app without dragging: click it (or press Enter on it) and pick a category.
+let dragEnded = 0;
+function moveApp(id, to){
+  orgGroups.forEach(g => { g.ids = g.ids.filter(x => x !== id); });
+  if(to === 'new') orgGroups.push({name:'New Category', ids:[id], fresh:true});
+  else orgGroups[+to].ids.push(id);
+  showPlan();
+  if(to !== 'new') $(`#orgcats .chip[data-id="${CSS.escape(id)}"]`)?.focus();
+}
+function closeChipMenu(refocus){
+  const m = $('#chipmenu'); if(m.hidden) return;
+  m.hidden = true;
+  if(refocus) $(`#orgcats .chip[data-id="${CSS.escape(m.dataset.id)}"]`)?.focus();
+}
+function openChipMenu(chipEl){
+  const id = chipEl.dataset.id;
+  const from = +chipEl.parentElement.dataset.chips;
+  const m = $('#chipmenu');
+  m.dataset.id = id;
+  m.innerHTML = `<div class="chipmenu-head">Move ${esc(chipEl.textContent)} to</div>`
+    + orgGroups.map((g,i) => i === from ? '' : `<button type="button" role="menuitem" data-to="${i}">${esc(g.name)}</button>`).join('')
+    + `<button type="button" role="menuitem" data-to="new">+ New category</button>`;
+  m.hidden = false;
+  const r = chipEl.getBoundingClientRect();
+  const h = m.offsetHeight;
+  m.style.left = Math.min(r.left, innerWidth - m.offsetWidth - 8) + 'px';
+  m.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+  m.querySelector('[data-to]').focus();
+}
+$('#orgcats').addEventListener('click', e => {
+  const c = e.target.closest('.chip'); if(!c || Date.now() - dragEnded < 300) return;
+  openChipMenu(c);
+});
+$('#chipmenu').addEventListener('click', e => { const b = e.target.closest('[data-to]'); if(b){ $('#chipmenu').hidden = true; moveApp($('#chipmenu').dataset.id, b.dataset.to); } });
+$('#chipmenu').addEventListener('keydown', e => {
+  const items = [...$('#chipmenu').querySelectorAll('[data-to]')];
+  const i = items.indexOf(document.activeElement);
+  if(e.key === 'ArrowDown'){ e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  if(e.key === 'ArrowUp'){ e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  if(e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeChipMenu(true); }
+  if(e.key === 'Tab') closeChipMenu(false);
+});
+document.addEventListener('mousedown', e => { if(!e.target.closest('#chipmenu')) closeChipMenu(false); });
+$('#orgcats').addEventListener('scroll', () => closeChipMenu(false));
+$('#orgdlg').addEventListener('close', () => closeChipMenu(false));
+$('#organize').onclick = showOrganize;
+$('#orgcancel').onclick = () => $('#orgdlg').close();
+$('#orggo').onclick = suggestCategories;
+$('#orgback').onclick = () => { $('#orgstep1').hidden = false; $('#orgstep2').hidden = true; };
+$('#orgagain').onclick = async () => { $('#orgagain').innerHTML = '<span class="spin"></span> Trying again…'; await suggestCategories(); $('#orgagain').textContent = 'Try again'; };
+$('#orgapply').onclick = () => {
+  const mode = document.querySelector('input[name=orgmode]:checked').value;
+  $('#orgdlg').close();
+  arrangeByCategory(orgGroups.filter(g => g.ids.length), mode, orgInclude);
+};
+$('#orgaiset').onclick = () => { $('#orgdlg').close(); showSettings('ai'); };
+
+// ---------- settings: AI ----------
+let setState = null;   // from aiSettings
+let setFound = {};     // CLI id -> {installed, version, error}
+let setCur = 'page:license'; // what Settings shows: 'page:license|backups|help' or 'ai'
+let aiSel = null;     // on the AI page, the option shown below the list ('' for No AI)
+let setReturn = false; // reopen Organize after closing
+let setModels = {};    // provider id -> {models:[{id,name}], from, note} or {loading:true}
+const SET_PAGES = {license: loadLicense, backups: loadBackups, help: loadHelp};
+/** target: 'page:license' and so on, 'ai' for the AI in use (and back to Organize after), or nothing for where it was. */
+async function showSettings(target){
+  setReturn = target === 'ai';
+  setState = await api('aiSettings');
+  if(target) setCur = target;
+  if(aiSel === null || target === 'ai') aiSel = setState.active || '';
+  renderSettings(); openPage();
+  // Opening a dialog focuses its first button, which would look like a second selected row.
+  if(!$('#setdlg').open){ $('#setdlg').showModal(); if(setCur !== 'page:license' || lic.licensed) document.activeElement?.blur(); }
+  detectAI();
+}
+function openPage(){
+  const load = setCur.startsWith('page:') && SET_PAGES[setCur.slice(5)];
+  if(load) Promise.resolve(load()).catch(e => toast(e.message, 'err'));
+}
+async function detectAI(){
+  setFound = Object.fromEntries(setState.providers.filter(p => p.kind === 'cli').map(p => [p.id, {...(setFound[p.id] || {}), checking:true}]));
+  renderSettings();
+  setFound = await api('aiDetect').catch(() => ({}));
+  renderSettings();
+}
+/** Ready means it can be used right now: installed, or with its key (or server) set up. */
+function aiReady(p){
+  if(p.kind === 'cli'){ const f = setFound[p.id]; return f ? (f.checking && !('installed' in f) ? null : !!f.installed) : null; }
+  return (p.keyOptional || p.hasKey) && !!p.model;
+}
+function aiStatus(p){
+  if(p.kind === 'cli'){ const f = setFound[p.id] || {}; return f.checking && !('installed' in f) ? 'Checking…' : f.installed ? 'On this computer' : 'Not installed'; }
+  if(p.keyOptional) return p.model ? 'Set up' : 'Needs a server and model';
+  return !p.hasKey ? 'Needs an API key' : p.model ? `Key saved ${p.keyHint}` : 'Needs a model';
+}
+function renderSettings(){
+  document.querySelectorAll('#setdlg .prov').forEach(b => {
+    b.classList.toggle('cur', b.dataset.prov === setCur);
+    b.onclick = () => { setCur = b.dataset.prov; renderSettings(); openPage(); };
+  });
+  const page = setCur.startsWith('page:') ? setCur.slice(5) : null;
+  Object.keys(SET_PAGES).forEach(n => { $('#page-' + n).hidden = page !== n; });
+  $('#setbody').hidden = !!page;
+  if(page) return;
+  const body = $('#setbody');
+  const keepFilter = $('#mfilter') ? $('#mfilter').value : '';
+  const opt = (id, name, status, ready) => `<button class="opt${setState.active === id || (!id && !setState.active) ? ' on' : ''}${aiSel === id ? ' cur' : ''}${ready === false ? ' off' : ''}" data-ai="${id}"><span class="radio"></span><span class="nm">${esc(name)}</span><span class="st">${esc(status)}</span></button>`;
+  const provs = setState.providers;
+  const ready = provs.filter(p => aiReady(p) !== false);
+  const setup = provs.filter(p => aiReady(p) === false);
+  body.innerHTML = `<div class="set-head"><div><h3>AI for organizing</h3><p class="hint" style="margin:4px 0 0;font-size:13px">Organize by category can ask an AI for groups like Kids or Work, and follow what you tell it. Without one, apps are grouped by App Store category.</p></div><button class="btn small" id="setclose" style="margin-left:auto">Done</button></div>
+    <div class="opts">
+      <div class="opt-label">Ready to use</div>
+      ${opt('', 'No AI', 'App Store categories', true)}
+      ${ready.map(p => opt(p.id, p.name, aiStatus(p), aiReady(p))).join('')}
+      ${setup.length ? `<div class="opt-label">Needs setup<span class="spacer"></span><button class="btn small" id="setdetect" style="text-transform:none;letter-spacing:0;font-weight:400">Look again</button></div>${setup.map(p => opt(p.id, p.name, aiStatus(p), false)).join('')}` : ''}
+    </div>
+    <div class="detail" id="aidetail"></div>`;
+  body.querySelectorAll('.opt').forEach(b => b.onclick = async () => {
+    aiSel = b.dataset.ai;
+    // Picking an option that's ready makes it the one in use, like a radio button.
+    const p = provs.find(x => x.id === aiSel);
+    const isReady = !aiSel || (p && aiReady(p));
+    try{
+      if(isReady && aiSel !== (setState.active || '')){
+        setState = aiSel ? await api('aiSave', {id: aiSel, active: true}) : await api('aiSave', {id: setState.active, active: false});
+        refreshAIActive();
+      }
+    }catch(e){ /* shown below */ }
+    renderSettings();
+  });
+  if($('#setdetect')) $('#setdetect').onclick = detectAI;
+  $('#setclose').onclick = () => $('#setdlg').close();
+  const d = $('#aidetail');
+  if(aiSel === ''){
+    d.innerHTML = `<h4>No AI</h4><p style="margin:0">Apps are grouped by their App Store category, such as Games, Productivity and Social Networking. It's free and needs no setup.</p>`;
+    return;
+  }
+  const p = provs.find(x => x.id === aiSel);
+  if(!p){ aiSel = ''; return renderSettings(); }
+  const f = setFound[p.id] || {};
+  const inUse = setState.active === p.id;
+  const isReady = aiReady(p);
+  d.innerHTML = `<div class="row"><h4>${esc(p.name)}</h4>${p.kind === 'cli' && f.installed ? `<span class="badge ok">✓ ${esc(f.version || 'Installed')}</span>` : ''}${p.hasKey ? `<span class="badge ok">✓ Key saved ${esc(p.keyHint)}</span>` : ''}${inUse ? '<span class="badge on">In use</span>' : ''}</div>
+    <p class="hint" style="margin:0;font-size:13px">${esc(p.blurb)}${p.site ? ` <a href="${esc(p.site)}" target="_blank">${p.kind === 'api' ? 'Get a key' : 'Learn more'}</a>` : ''}</p>
+    ${p.kind === 'cli' && isReady === false ? `<p style="margin:0">Install ${esc(p.name)} and sign in to it, then press <b>Look again</b>.${f.error ? ` <span class="hint mono">${esc(f.error)}</span>` : ''}</p>` : ''}
+    ${p.customUrl ? `<div class="field"><label for="seturl">Server address</label><input id="seturl" class="mono" value="${esc(p.baseUrl)}" placeholder="http://localhost:11434/v1"></div>` : ''}
+    ${p.kind === 'api' ? `<div class="field"><label for="setkey">API key${p.keyOptional ? ' <span class="hint" style="font-weight:400">(if the server needs one)</span>' : ''}</label>
+      <div class="row" style="flex-wrap:nowrap"><input id="setkey" type="password" class="mono" autocomplete="off" spellcheck="false" placeholder="${p.hasKey ? `Saved (${esc(p.keyHint)}). Paste a new key to replace it.` : 'Paste your key'}">${p.hasKey ? '<button class="btn small" id="setkeydel">Remove</button>' : ''}</div>
+      <span class="hint" style="margin:0">${p.canSaveKey ? 'Stored on this computer, encrypted with your system keychain.' : 'This computer has no keychain to encrypt a key with, so keys can\'t be saved here.'}</span></div>` : ''}
+    ${isReady !== false || p.kind === 'api' ? `<div class="models">
+      <div class="models-head"><b>Model</b><span class="hint" id="mcount" style="margin:0"></span><span class="spacer"></span>
+        <input id="mfilter" placeholder="Filter, or type a model ID" autocomplete="off" spellcheck="false"><button class="btn small" id="mrefresh" title="Ask ${esc(p.name)} for its models again">Refresh</button></div>
+      <div class="mlist" id="mlist"></div>
+    </div>` : ''}
+    <div class="row"><button class="btn" id="settest"${isReady === false && p.kind === 'cli' ? ' disabled' : ''}>Test</button>${inUse ? '' : `<button class="btn primary" id="setuse"${isReady === false ? ` disabled title="${p.kind === 'cli' ? 'Install it first' : 'Add a key and choose a model first'}"` : ''}>Use for organizing</button>`}<span id="setmsg" class="hint" style="margin:0"></span></div>
+    ${p.kind === 'cli' ? `<p class="hint" style="margin:0">Runs <span class="mono">${esc(p.command)}</span> with tools turned off, in an empty folder. When you press Suggest categories, it gets app names, their App Store categories, and the options and instructions you set in Organize.</p>` : '<p class="hint" style="margin:0">When you press Suggest categories, it gets app names, their App Store categories, and the options and instructions you set in Organize.</p>'}`;
+  if($('#mfilter')) $('#mfilter').value = keepFilter;
+  bindSettings();
+}
+/** Saves what's typed in the form for the provider shown. */
+async function saveForm(extra = {}){
+  const body = {id: aiSel, ...extra};
+  if($('#seturl')) body.baseUrl = $('#seturl').value;
+  if($('#setkey') && $('#setkey').value.trim()) body.apiKey = $('#setkey').value;
+  setState = await api('aiSave', body);
+}
+function setMsg(text, kind){ const m = $('#setmsg'); if(m){ m.textContent = text; m.className = 'hint ' + (kind === 'ok' ? 'ok-text' : kind === 'err' ? 'err-text' : ''); } }
+function bindSettings(){
+  const use = $('#setuse');
+  if(use) use.onclick = async () => {
+    try{
+      await saveForm({active: true});
+      renderSettings(); refreshAIActive();
+    }catch(e){ setMsg(e.message, 'err'); }
+  };
+  if($('#settest')) $('#settest').onclick = async () => {
+    const b = $('#settest'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Testing…'; setMsg('');
+    try{ await saveForm(); const r = await api('aiTest', {id: aiSel}); renderSettings(); setMsg(`Works. It answered in ${r.seconds} seconds.`, 'ok'); }
+    catch(e){ renderSettings(); setMsg(e.message, 'err'); }
+  };
+  if($('#mlist')){
+    $('#mfilter').oninput = renderModelList;
+    $('#mrefresh').onclick = () => loadModels(aiSel, true);
+    $('#mlist').onclick = async e => {
+      const row = e.target.closest('[data-model]'); if(!row) return;
+      try{
+        setState = await api('aiSave', {id: aiSel, model: row.dataset.model});
+        // A model can make the option ready, so redraw it all (and keep the list where it was scrolled).
+        const top = $('#mlist').scrollTop; renderSettings(); if($('#mlist')) $('#mlist').scrollTop = top; refreshAIActive();
+      }
+      catch(err){ setMsg(err.message, 'err'); }
+    };
+    loadModels(aiSel);
+  }
+  if($('#setkeydel')) $('#setkeydel').onclick = async () => { setState = await api('aiSave', {id: aiSel, apiKey: ''}); renderSettings(); refreshAIActive(); };
+  // A new key or server address can change which models there are.
+  ['#seturl','#setkey'].forEach(s => { const el = $(s); if(el) el.onchange = () => saveForm().then(() => { delete setModels[aiSel]; renderSettings(); if(s === '#setkey') setMsg('Key saved.', 'ok'); }).catch(e => setMsg(e.message, 'err')); });
+}
+/** Asks the tool or API for its models, once per provider unless refreshed. */
+const modelReq = {}; // provider id -> number of the newest request, so an older answer can't replace a newer one
+async function loadModels(id, force){
+  if(!force && setModels[id]) return renderModelList();
+  const n = modelReq[id] = (modelReq[id] || 0) + 1;
+  setModels[id] = {loading:true}; renderModelList();
+  let r;
+  try{ r = await api('aiModels', {id}); }
+  catch(e){ r = {models:[], from:'builtin', note:e.message}; }
+  if(modelReq[id] !== n) return;
+  setModels[id] = r;
+  if(aiSel === id) renderModelList();
+}
+function renderModelList(){
+  const el = $('#mlist'); if(!el) return;
+  const p = setState.providers.find(x => x.id === aiSel);
+  const m = setModels[aiSel] || {loading:true};
+  const q = ($('#mfilter').value || '').trim();
+  if(m.loading){ el.innerHTML = `<div class="mnote"><span class="spin"></span> Asking ${esc(p.name)} for its models…</div>`; $('#mcount').textContent = ''; return; }
+  const all = m.models || [];
+  const ql = q.toLowerCase();
+  const shown = all.filter(x => !ql || x.id.toLowerCase().includes(ql) || x.name.toLowerCase().includes(ql));
+  $('#mcount').textContent = `${all.length} ${m.from === 'live' ? `from ${p.kind === 'cli' ? p.name : 'the API'}` : 'built in'}`;
+  const row = (id, name, sub) => `<button class="mrow${p.model === id ? ' on' : ''}" data-model="${esc(id)}"><span><b>${esc(name)}</b>${sub ? `<span class="mono">${esc(sub)}</span>` : ''}</span>${p.model === id ? '<span class="badge on">✓ Selected</span>' : ''}</button>`;
+  let html = '';
+  if(m.note) html += `<div class="mnote">${m.from === 'builtin' && all.length ? 'Showing the built-in list. ' : ''}${esc(m.note)}</div>`;
+  if(p.kind === 'cli' && !ql) html += row('', `${p.name}'s default`, 'whatever model it is set to use');
+  // The saved model, or a typed ID, may not be in the list; offer it anyway.
+  if(p.model && !all.some(x => x.id === p.model) && (!ql || p.model.toLowerCase().includes(ql))) html += row(p.model, p.model, 'not in the list');
+  if(q && !all.some(x => x.id === q) && q !== p.model) html += row(q, `Use “${q}”`, 'a model ID you typed');
+  html += shown.slice(0, 300).map(x => row(x.id, x.name, x.name !== x.id ? x.id : '')).join('');
+  if(shown.length > 300) html += `<div class="mnote">${shown.length - 300} more. Type to narrow the list.</div>`;
+  if(!html) html = `<div class="mnote">No models match. Type a model ID to use it anyway.</div>`;
+  el.innerHTML = html;
+}
+$('#setbtn').onclick = () => showSettings();
+document.querySelectorAll('#setdlg .setdone').forEach(b => b.onclick = () => $('#setdlg').close());
+$('#setdlg').addEventListener('close', () => { refreshAIActive(); if(setReturn){ setReturn = false; if(S) showOrganize(); } });
+
 // ---------- help & terms ----------
 window.addEventListener('error', e => api('logError', {message: e.message, stack: e.error && e.error.stack}).catch(() => {}));
 window.addEventListener('unhandledrejection', e => api('logError', {message: String(e.reason && e.reason.message || e.reason), stack: e.reason && e.reason.stack}).catch(() => {}));
-async function showHelp(){
+function showHelp(){ showSettings('page:help'); }
+async function loadHelp(){
   const n = await api('errorCount').catch(() => 0);
   $('#errcount').textContent = n ? `${n} recent error${n===1?'':'s'} from the app, with your app and system versions.` : 'No errors recorded. Sends your app and system versions.';
   $('#clearerrs').hidden = !n;
-  $('#helpdlg').showModal();
 }
 document.querySelectorAll('[data-help]').forEach(b => b.onclick = () => api('help', {kind: b.dataset.help}).catch(e => toast(e.message, 'err')));
-$('#helpbtn').onclick = showHelp;
-$('#helpclose').onclick = () => $('#helpdlg').close();
-$('#clearerrs').onclick = async () => { await api('clearErrors'); showHelp(); };
+$('#clearerrs').onclick = async () => { await api('clearErrors'); loadHelp(); };
 // TERMS.md is the single source: "## " starts a section, blank lines separate paragraphs.
 function termsHTML(md){
   return md.split(/\n\s*\n/).map(b => b.trim()).filter(b => b && !b.startsWith('# '))
@@ -428,7 +827,6 @@ async function showTerms(mustAgree){
   $('#termstext').innerHTML = termsHTML(t.text);
   $('#termsask').hidden = $('#termsfirst').hidden = !mustAgree;
   $('#termslater').hidden = !!mustAgree;
-  $('#helpdlg').close();
   $('#termsdlg').showModal();
   $('#termstext').scrollTop = 0;
 }
@@ -441,6 +839,7 @@ $('#termsdlg').addEventListener('cancel', e => { if(!$('#termsfirst').hidden) e.
 window.organizer.onShow(what => {
   if(what === 'terms' && !$('#termsdlg').open) showTerms(false);
   if(what === 'checkUpdates') checkUpdates();
+  if(what === 'settings' && !$('#termsdlg').open) showSettings();
 });
 
 // ---------- updates ----------
@@ -457,6 +856,7 @@ function showUpdate(u){
     unsupported: 'Automatic updates aren\'t available here yet. Download the newest version from the Arrange website.',
   }[u.state];
   if(msg) $('#updstatus').textContent = msg;
+  $('#navupd').textContent = u.state === 'ready' ? 'UPDATE' : '';
   $('#updbtn').hidden = u.state !== 'ready';
   if(u.state === 'ready') $('#updbtn').textContent = `Restart to Update to ${u.version}`;
   if(u.state === 'ready' && updateNoted !== u.version){

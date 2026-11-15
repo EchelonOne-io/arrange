@@ -9,8 +9,11 @@ It detects which one is plugged in and shows its real grid: 6 × 5 pages on an i
 - Select several apps to make a folder or move them together; rename and sort folders
 - **Remove apps from the Home Screen** (they stay installed, in the App Library), or add App-Library-only apps back
 - Sort a page or everything A–Z, undo/redo, search
+- **Organize by category**: sort apps into categories, each on its own page or in its own folder, with a
+  preview where you can rename categories and drag apps between them. Categories come from the App Store,
+  or from an AI you set up in **Settings** (⚙︎)
 - Nothing changes until you press **Apply to iPad**. A backup is saved first, in
-  `Documents/Arrange Backups`, and **Backups** restores any of them
+  `Documents/Arrange Backups`, and **Settings › Backups** restores any of them
   (backups from the app's earlier names, Home Screen Organizer and iPad Organizer, are moved there on first launch)
 
 Try it without a device: click **Try it with a sample device** and pick the sample iPad or iPhone.
@@ -25,12 +28,13 @@ Try it without a device: click **Try it with a sample device** and pick the samp
 4. The Home Screen appears. Rearrange, then press **Apply to iPad**.
 
 Arrange updates itself: new versions download in the background, and a notice asks you to restart
-(**Help › Check for Updates** checks right away).
+(**Settings › Help & updates**, or **Help › Check for Updates** on a Mac, checks right away).
 
 Rearranging and the sample devices are free. Applying to your own device needs a license key: click
-**Buy / Enter key**, buy one, and paste the key from your purchase email.
+**Buy / Enter key**, buy one, and paste the key from your purchase email. After that, the license is under
+**Settings › License** (⌘, on a Mac opens Settings).
 
-**Help** (in the toolbar, and the Help menu on a Mac) opens a prefilled GitHub issue to report a problem,
+**Settings › Help & updates** (and the Help menu on a Mac) opens a prefilled GitHub issue to report a problem,
 send feedback, or send an error report with recent errors. Nothing is sent until you submit the issue.
 Using Arrange means agreeing to the [Terms of Service](TERMS.md); the app asks once on first launch.
 
@@ -49,6 +53,14 @@ npm run dist:win   # build a Windows installer (run on Windows)
 **License keys:** sold through [Polar](https://polar.sh). Set the organization ID and checkout link at the
 top of `src/license.js`. To test against Polar's sandbox, run with `ARRANGE_POLAR_SANDBOX=1
 ARRANGE_POLAR_ORG_ID=<sandbox org id> npm start`.
+
+**Organize by category:** `src/categorize.js` looks up App Store genres (cached in
+`appstore-genres.json` in the app's data folder), then either groups by genre or asks the AI. `src/ai.js`
+runs the AI: an agent CLI found on the computer (Claude Code, Codex, Gemini CLI, Cursor Agent, OpenCode),
+run in an empty temp folder with the prompt on stdin and tools off where the CLI allows it, or an API
+(Claude, OpenAI, Gemini, or any OpenAI-compatible server). Settings are in `ai.json`, with API keys
+encrypted by Electron `safeStorage`. Claude Code also runs without MCP servers, plugins or settings, which
+keeps a call to a fraction of a cent.
 
 **Help and terms:** problem reports, feedback and error reports open issues on the public
 [arrange-releases](https://github.com/EchelonOne-io/arrange-releases/issues) repo (`src/support.js`). Errors

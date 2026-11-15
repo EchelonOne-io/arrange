@@ -46,4 +46,31 @@ function demoInstalled() {
   return [...HOME_APPS, ...LIBRARY_ONLY].map((n) => ({ id: ids(n), name: n }));
 }
 
-module.exports = { demoState, demoIconSVG, demoInstalled };
+// App Store genres for the sample apps, so organizing by category works without the internet.
+const DEMO_GENRES = {
+  Utilities: 'Safari Clock Calculator Settings Files Measure Magnifier Translate Chrome 1Password Compass Tips FindMy VoiceMemos',
+  Productivity: 'Mail Notes Reminders Freeform Shortcuts Calendar Notion Docs Sheets Drive Dropbox Gmail Keynote Pages Numbers GoodNotes Things Obsidian Contacts',
+  'Social Networking': 'Messages FaceTime Discord Reddit Instagram Pinterest',
+  Business: 'Slack Zoom',
+  'Photo & Video': 'Photos Camera Lightroom iMovie Clips',
+  Music: 'Music Spotify GarageBand',
+  Entertainment: 'TV Netflix YouTube Twitch Podcasts',
+  'Graphics & Design': 'Figma Procreate',
+  Books: 'Books Kindle',
+  Education: 'Duolingo',
+  News: 'News Stocks Weather',
+  Navigation: 'Maps',
+  Lifestyle: 'Home',
+  Shopping: 'Amazon',
+  Travel: 'Uber Airbnb',
+  Finance: 'Venmo',
+  Games: 'Chess Minecraft Wordle Sudoku',
+  'Health & Fitness': 'Headspace Strava Fitness Journal',
+};
+function demoGenres() {
+  const out = {};
+  for (const [genre, names] of Object.entries(DEMO_GENRES)) for (const n of names.split(' ')) out[`com.demo.${n.toLowerCase()}`] = genre;
+  return out;
+}
+
+module.exports = { demoState, demoIconSVG, demoInstalled, demoGenres };
