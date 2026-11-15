@@ -11,8 +11,10 @@ class Updater {
   constructor(send) {
     this.send = send;
     this.state = { state: 'idle' };
-    this.enabled = app.isPackaged; // running from source (npm start) has nothing to update
-    if (!this.enabled) return;
+    // Only the Mac app is built by CI and published to the update feed; Windows is built by hand.
+    // Running from source (npm start) has nothing to update.
+    this.enabled = app.isPackaged && process.platform === 'darwin';
+    if (!this.enabled) { this.state = { state: app.isPackaged ? 'unsupported' : 'dev' }; return; }
     const { autoUpdater } = require('electron-updater');
     this.au = autoUpdater;
     autoUpdater.autoDownload = true;
@@ -37,7 +39,7 @@ class Updater {
   }
 
   async check() {
-    if (!this.enabled) return { state: 'dev' };
+    if (!this.enabled) return this.state;
     // Don't start over while a download is under way or waiting to install.
     if (this.state.state === 'downloading' || this.state.state === 'ready') return this.state;
     this.set({ state: 'checking' });

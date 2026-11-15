@@ -454,6 +454,7 @@ function showUpdate(u){
     current: 'You have the latest version.',
     error: u.message,
     dev: 'Updates are only available in the installed app.',
+    unsupported: 'Automatic updates aren\'t available here yet. Download the newest version from the Arrange website.',
   }[u.state];
   if(msg) $('#updstatus').textContent = msg;
   $('#updbtn').hidden = u.state !== 'ready';
@@ -463,7 +464,7 @@ function showUpdate(u){
     $('#updnotetext').textContent = `Version ${u.version} has downloaded. Restart Arrange to start using it, or it will install the next time you quit.`;
     $('#updnote').hidden = false;
   }
-  if(updateAsked && ['current','error','dev'].includes(u.state)){ updateAsked = false; toast(msg, u.state === 'error' ? 'err' : 'ok'); }
+  if(updateAsked && ['current','error','dev','unsupported'].includes(u.state)){ updateAsked = false; toast(msg, u.state === 'error' ? 'err' : 'ok'); }
   else if(updateAsked && u.state === 'downloading' && !u.percent) toast(msg);
 }
 async function checkUpdates(){
@@ -474,8 +475,10 @@ $('#updcheck').onclick = checkUpdates;
 $('#updlater').onclick = () => { $('#updnote').hidden = true; };
 $('#updnow').onclick = $('#updbtn').onclick = async () => {
   if(dirty && !confirm('Restart to update? Changes you haven\'t applied will be lost.')) return;
-  dirty = false;
-  await api('installUpdate');
+  // Cleared first so the restart isn't held up by the unsaved-changes guard; put back if it doesn't restart.
+  const wasDirty = dirty; dirty = false;
+  const r = await api('installUpdate').catch(() => null);
+  if(!r || !r.ok){ dirty = wasDirty; toast('The update isn\'t ready to install yet. Try again in a moment.', 'err'); }
 };
 window.organizer.onUpdate(showUpdate);
 api('update').then(showUpdate).catch(() => {});
