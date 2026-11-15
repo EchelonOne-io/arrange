@@ -14,6 +14,7 @@ const APPS = [
   { id: 'a.insta', name: 'Instagram', genre: 'Photo & Video' },
   { id: 'a.slack', name: 'Slack', genre: 'Business' },
 ];
+const CRYPT = { encrypt: (x) => `e:${x}`, decrypt: (x) => x.slice(2) };
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'arrange-test-'));
 
 test('the prompt numbers apps and carries the person\'s notes', () => {
@@ -112,7 +113,7 @@ test('asking the Claude API and an OpenAI-style API', async () => {
       : { choices: [{ message: { content: '{"ok":true}' } }] };
     return { ok: true, json: async () => body };
   };
-  const ai = new AI({ file: path.join(tmp(), 'ai.json'), fetch });
+  const ai = new AI({ file: path.join(tmp(), 'ai.json'), fetch, crypt: CRYPT });
   ai.save({ id: 'anthropic', apiKey: 'k1', active: true });
   assert.strictEqual((await ai.test()).ok, true);
   assert.strictEqual(sent[0].url, 'https://api.anthropic.com/v1/messages');
@@ -125,7 +126,7 @@ test('asking the Claude API and an OpenAI-style API', async () => {
 
 test('API errors explain a rejected key', async () => {
   const fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'invalid x-api-key' } }) });
-  const ai = new AI({ file: path.join(tmp(), 'ai.json'), fetch });
+  const ai = new AI({ file: path.join(tmp(), 'ai.json'), fetch, crypt: CRYPT });
   ai.save({ id: 'anthropic', apiKey: 'bad', active: true });
   await assert.rejects(ai.ask('hi'), /API key was not accepted: invalid x-api-key/);
 });
@@ -155,7 +156,7 @@ test('API model lists: Anthropic names, OpenAI without non-chat models, and a bu
   const fetch = async (url) => ({ ok: true, json: async () => (url.includes('anthropic')
     ? { data: [{ id: 'claude-opus-5-5', display_name: 'Claude Opus 5.5' }] }
     : { data: [{ id: 'text-embedding-3-large' }, { id: 'gpt-6-sol' }, { id: 'whisper-1' }] }) });
-  const ai = new AI({ file: path.join(tmp(), 'ai.json'), fetch });
+  const ai = new AI({ file: path.join(tmp(), 'ai.json'), fetch, crypt: CRYPT });
   const none = await ai.models('anthropic');
   assert.strictEqual(none.from, 'builtin');
   assert.match(none.note, /Add your Claude API key/);
@@ -177,9 +178,41 @@ test('model names that could break out of a Windows command are refused', async 
   assert.doesNotThrow(() => ai.save({ id: 'cursor-agent', model: 'gpt-5[high]' }));
 });
 
-test('settings say whether keys are encrypted', () => {
+test('API keys are never saved unencrypted', () => {
   const plain = new AI({ file: path.join(tmp(), 'ai.json') });
-  assert.strictEqual(plain.settings().providers[0].encrypted, false);
-  const enc = new AI({ file: path.join(tmp(), 'ai.json'), crypt: { encrypt: (x) => x, decrypt: (x) => x } });
-  assert.strictEqual(enc.settings().providers[0].encrypted, true);
+  assert.strictEqual(plain.settings().providers[0].canSaveKey, false);
+  assert.throws(() => plain.save({ id: 'anthropic', apiKey: 'sk-secret' }), /no keychain/);
+  assert.strictEqual(new AI({ file: path.join(tmp(), 'ai.json'), crypt: CRYPT }).settings().providers[0].canSaveKey, true);
+});
+
+test('a key is only sent over https, or to this computer', () => {
+  const ai = new AI({ file: path.join(tmp(), 'ai.json'), crypt: CRYPT });
+  assert.doesNotThrow(() => ai.save({ id: 'compatible', baseUrl: 'http://localhost:1234/v1', apiKey: 'k' }));
+  assert.doesNotThrow(() => ai.save({ id: 'compatible', baseUrl: 'https://openrouter.ai/api/v1' }));
+  assert.throws(() => ai.save({ id: 'compatible', baseUrl: 'http://192.168.1.20:11434/v1' }), /only sent over https/);
+  assert.doesNotThrow(() => ai.save({ id: 'compatible', apiKey: '', baseUrl: 'http://192.168.1.20:11434/v1' }), 'no key, any address');
+});
+
+test('removing the key of the AI in use stops using it', () => {
+  const ai = new AI({ file: path.join(tmp(), 'ai.json'), crypt: CRYPT });
+  ai.save({ id: 'anthropic', apiKey: 'k', active: true });
+  assert.strictEqual(ai.activeId(), 'anthropic');
+  ai.save({ id: 'anthropic', apiKey: '' });
+  assert.strictEqual(ai.activeId(), null);
+});
+
+test('without an AI, a failed App Store lookup is an error, not an all-Other plan', async () => {
+  const lookup = async (ids) => Object.fromEntries(ids.map((id) => [id, null]));
+  await assert.rejects(categorize(APPS, { lookup }), /Couldn't look up App Store categories/);
+});
+
+test('Gemini CLI and OpenCode get settings that turn their tools off, and Cursor runs read-only', () => {
+  const p = (id) => PROVIDERS.find((x) => x.id === id);
+  const dir = tmp();
+  p('gemini-cli').prepare(dir);
+  assert.ok(JSON.parse(fs.readFileSync(path.join(dir, '.gemini', 'settings.json'))).tools.exclude.includes('run_shell_command'));
+  p('opencode').prepare(dir);
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'opencode.json'))).permission.bash, 'deny');
+  assert.ok(p('opencode').args('').includes('plan'));
+  assert.deepStrictEqual(p('cursor-agent').args('').slice(0, 3), ['-p', '--mode', 'ask']);
 });

@@ -113,7 +113,10 @@ const ROUTES = {
     const lookup = backend.demo
       ? async () => demoGenres()
       : (ids) => appStoreGenres(ids, { file: path.join(app.getPath('userData'), 'appstore-genres.json'), country: (app.getLocaleCountryCode() || 'us').toLowerCase() });
-    return categorize(apps, { lookup, ai: body.useAI && ai.activeName() ? ai : null, size: body.size, notes: body.notes });
+    // The AI chosen when Suggest was pressed, even if Settings change while the App Store lookup runs.
+    const id = body.useAI ? ai.activeId() : null;
+    const asker = id ? { ask: (prompt) => ai.ask(prompt, { id }) } : null;
+    return categorize(apps, { lookup, ai: asker, size: body.size, notes: body.notes });
   },
 };
 

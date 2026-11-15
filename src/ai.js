@@ -30,6 +30,17 @@ const checkModel = (m) => {
   return m;
 };
 
+const writeJSON = (file, data) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(data)); };
+const LOOPBACK = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|::1)$/i;
+/** A saved key only ever goes over HTTPS, or plain HTTP to this same computer. */
+function checkKeyUrl(baseUrl, key) {
+  if (!key) return;
+  let u; try { u = new URL(baseUrl); } catch { throw new Error('That server address is not a valid URL.'); }
+  if (u.protocol !== 'https:' && !LOOPBACK.test(u.hostname)) {
+    throw new Error('An API key is only sent over https://, or to a server on this computer (localhost). Use an https:// address, or remove the key.');
+  }
+}
+
 const stripAnsi = (s) => String(s).replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '');
 
 const PROVIDERS = [
@@ -68,6 +79,10 @@ const PROVIDERS = [
     id: 'gemini-cli', kind: 'cli', name: 'Gemini CLI', command: 'gemini', site: 'https://github.com/google-gemini/gemini-cli',
     blurb: 'Uses your Google account through the Gemini CLI.',
     models: GEMINI, defaultModel: '',
+    // Project settings in the empty folder turn off every built-in tool.
+    prepare: (cwd) => writeJSON(path.join(cwd, '.gemini', 'settings.json'), { tools: { exclude: [
+      'run_shell_command', 'write_file', 'replace', 'read_file', 'read_many_files', 'glob', 'search_file_content',
+      'list_directory', 'web_fetch', 'google_web_search', 'save_memory'] } }),
     args: (m) => (m ? ['--model', m] : []),
   },
   {
@@ -75,14 +90,17 @@ const PROVIDERS = [
     blurb: 'Uses your Cursor plan through the Cursor CLI.',
     models: [], defaultModel: '',
     list: { args: ['models'], parse: parseLines },
-    args: (m) => ['-p', '--output-format', 'text', ...(m ? ['--model', m] : [])],
+    // "ask" mode is Cursor's read-only question-and-answer mode.
+    args: (m) => ['-p', '--mode', 'ask', '--output-format', 'text', ...(m ? ['--model', m] : [])],
   },
   {
     id: 'opencode', kind: 'cli', name: 'OpenCode', command: 'opencode', site: 'https://opencode.ai',
     blurb: 'Uses whichever model you set up in OpenCode.',
     models: [], defaultModel: '',
     list: { args: ['models'], parse: (out) => stripAnsi(out).split('\n').map((l) => l.trim()).filter((l) => l && !/\s/.test(l)).map((id) => ({ id, name: id })) },
-    args: (m) => ['run', ...(m ? ['--model', m] : [])],
+    // The read-only "plan" agent, and project settings in the empty folder that deny edits, shell and web.
+    prepare: (cwd) => writeJSON(path.join(cwd, 'opencode.json'), { $schema: 'https://opencode.ai/config.json', permission: { edit: 'deny', bash: 'deny', webfetch: 'deny' } }),
+    args: (m) => ['run', '--agent', 'plan', ...(m ? ['--model', m] : [])],
   },
   {
     id: 'anthropic', kind: 'api', api: 'anthropic', name: 'Claude API', site: 'https://console.anthropic.com/settings/keys',
@@ -181,7 +199,10 @@ class AI {
 
   _write(s) {
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, JSON.stringify(s, null, 2), { mode: 0o600 });
+    // Write a temporary file and swap it in, so a crash mid-save can't leave half a file.
+    const tmp = `${this.file}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(s, null, 2), { mode: 0o600 });
+    fs.renameSync(tmp, this.file);
   }
 
   _key(saved) {
@@ -201,7 +222,7 @@ class AI {
           id: p.id, kind: p.kind, name: p.name, blurb: p.blurb, site: p.site, models: p.models, command: p.command || null,
           customUrl: !!p.customUrl, keyOptional: !!p.keyOptional,
           model: saved.model ?? p.defaultModel, baseUrl: saved.baseUrl || p.baseUrl || '',
-          encrypted: !!this.crypt,
+          canSaveKey: !!this.crypt,
           hasKey: !!this._key(saved), keyHint: this._key(saved) ? `…${this._key(saved).slice(-4)}` : '',
         };
       }),
@@ -218,9 +239,16 @@ class AI {
     if (baseUrl !== undefined && p.customUrl) saved.baseUrl = String(baseUrl).trim().replace(/\/+$/, '');
     if (apiKey !== undefined) {
       const k = String(apiKey).trim();
-      if (!k) delete saved.apiKey;
-      else saved.apiKey = this.crypt ? this.crypt.encrypt(k) : `plain:${k}`;
+      if (!k) {
+        delete saved.apiKey;
+        // Without its key it can't answer, so stop using it.
+        if (s.active === id && !p.keyOptional) s.active = null;
+      } else {
+        if (!this.crypt) throw new Error('This computer has no keychain to encrypt the key with, so it can\'t be saved. Use an AI app on this computer instead.');
+        saved.apiKey = this.crypt.encrypt(k);
+      }
     }
+    if (p.kind === 'api') checkKeyUrl(saved.baseUrl || p.baseUrl, this._key(saved));
     s.providers[id] = saved;
     if (active === true) s.active = id;
     if (active === false && s.active === id) s.active = null;
@@ -252,6 +280,12 @@ class AI {
     return { p, model: saved.model ?? p.defaultModel, baseUrl: saved.baseUrl || p.baseUrl, key: this._key(saved) };
   }
 
+  /** ID of the AI in use, or null. */
+  activeId() {
+    const c = this._config();
+    return c ? c.p.id : null;
+  }
+
   /** Name of the AI in use, for the window, or null when none is set up. */
   activeName() {
     const c = this._config();
@@ -278,6 +312,7 @@ class AI {
       }
     }
     if (!c.key && !c.p.keyOptional) return builtin(`Add your ${c.p.name} key to load the full list.`);
+    try { checkKeyUrl(c.baseUrl, c.key); } catch (e) { return builtin(e.message); }
     try {
       const r = c.p.api === 'anthropic'
         ? await this._get(`${c.baseUrl}/v1/models?limit=1000`, { 'x-api-key': c.key, 'anthropic-version': '2023-06-01' })
@@ -310,6 +345,7 @@ class AI {
       // An empty folder, so the tool has nothing of yours to look at.
       const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'arrange-ai-'));
       try {
+        if (c.p.prepare) c.p.prepare(cwd);
         const input = c.p.id === 'claude-code' ? prompt : `${SYSTEM}\n\n${prompt}`;
         const r = await exec(c.p.command, c.p.args(checkModel(c.model)), { input, timeout, cwd });
         if (r.code !== 0) throw new Error(`${c.p.name} stopped with an error: ${lastLines(r.err || r.out) || `exit code ${r.code}`}`);
@@ -322,6 +358,7 @@ class AI {
     }
     if (!c.key && !c.p.keyOptional) throw new Error(`Add your ${c.p.name} key in Settings first.`);
     if (!c.model) throw new Error(`Choose a ${c.p.name} model in Settings first.`);
+    checkKeyUrl(c.baseUrl, c.key);
     const signal = AbortSignal.timeout(timeout);
     if (c.p.api === 'anthropic') {
       const res = await this.fetch(`${c.baseUrl}/v1/messages`, {

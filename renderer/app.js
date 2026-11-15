@@ -289,14 +289,17 @@ async function apply(){
   if(removing && !confirm(`${removing} app(s) will come off your pages and go into the "App Library" folders on the last page. Continue?`)) return;
   if(S.shelf.length && !confirm(`${S.shelf.length} item(s) are still on the shelf. They will go onto a new last page. Continue?`)) return;
   const btn = $('#apply'); btn.disabled = true; btn.textContent = 'Applying…';
+  $('#organize').disabled = true; // its result would be thrown away by the reload after applying
+  const names = S.names || [];
   try{
     const r = await api('apply', {tree: buildTree()});
     if(r.needsLicense){ showLicense(); return; }
     toast(r.message + (r.ok ? '' : ` (${r.matched} of ${r.total} items landed exactly where you put them.)`), r.ok ? 'ok' : 'err', 12000);
     dirty = false;
-    setTimeout(() => load(device?.udid, true), r.ok ? 300 : 600);
+    // Page names are only shown here (iOS pages have none), so carry them over when the pages came back as sent.
+    setTimeout(async () => { await load(device?.udid, true); if(r.ok && S && S.pages.length === names.length){ S.names = names; render(); } }, r.ok ? 300 : 600);
   }catch(e){ toast(e.message, 'err', 12000); }
-  finally{ btn.textContent = `Apply to ${profile.label}`; btn.disabled = false; }
+  finally{ btn.textContent = `Apply to ${profile.label}`; btn.disabled = false; updateButtons(); }
 }
 // ---------- license ----------
 let lic = {licensed:false, buyUrl:null};
@@ -410,6 +413,7 @@ window.addEventListener('beforeunload', e => { if(dirty) { e.preventDefault(); e
 // ---------- organize by category ----------
 let orgGroups = null; // [{name, ids:[bundle id]}] while the plan is shown
 let orgBy = null;
+let orgInclude = true; // the "include apps in folders" choice the plan was made with
 let orgSortables = [];
 let aiActive = null;  // "Claude Code (haiku)" or null
 
@@ -501,6 +505,7 @@ async function showOrganize(){
 }
 async function suggestCategories(){
   const includeFolders = $('#orgfolders').checked;
+  orgInclude = includeFolders;
   const uids = organizableApps(includeFolders);
   const seen = new Set();
   const apps = uids.map(u => nodes[u]).filter(n => !seen.has(n.id) && (seen.add(n.id), true)).map(n => ({id:n.id, name:n.name}));
@@ -569,7 +574,7 @@ $('#orgagain').onclick = async () => { $('#orgagain').innerHTML = '<span class="
 $('#orgapply').onclick = () => {
   const mode = document.querySelector('input[name=orgmode]:checked').value;
   $('#orgdlg').close();
-  arrangeByCategory(orgGroups.filter(g => g.ids.length), mode, $('#orgfolders').checked);
+  arrangeByCategory(orgGroups.filter(g => g.ids.length), mode, orgInclude);
 };
 $('#orgaiset').onclick = () => { $('#orgdlg').close(); showSettings('ai'); };
 
@@ -605,12 +610,12 @@ async function detectAI(){
 /** Ready means it can be used right now: installed, or with its key (or server) set up. */
 function aiReady(p){
   if(p.kind === 'cli'){ const f = setFound[p.id]; return f ? (f.checking && !('installed' in f) ? null : !!f.installed) : null; }
-  return p.keyOptional ? !!p.model : p.hasKey;
+  return (p.keyOptional || p.hasKey) && !!p.model;
 }
 function aiStatus(p){
   if(p.kind === 'cli'){ const f = setFound[p.id] || {}; return f.checking && !('installed' in f) ? 'Checking…' : f.installed ? 'On this computer' : 'Not installed'; }
   if(p.keyOptional) return p.model ? 'Set up' : 'Needs a server and model';
-  return p.hasKey ? `Key saved ${p.keyHint}` : 'Needs an API key';
+  return !p.hasKey ? 'Needs an API key' : p.model ? `Key saved ${p.keyHint}` : 'Needs a model';
 }
 function renderSettings(){
   document.querySelectorAll('#setdlg .prov').forEach(b => {
@@ -666,13 +671,13 @@ function renderSettings(){
     ${p.customUrl ? `<div class="field"><label for="seturl">Server address</label><input id="seturl" class="mono" value="${esc(p.baseUrl)}" placeholder="http://localhost:11434/v1"></div>` : ''}
     ${p.kind === 'api' ? `<div class="field"><label for="setkey">API key${p.keyOptional ? ' <span class="hint" style="font-weight:400">(if the server needs one)</span>' : ''}</label>
       <div class="row" style="flex-wrap:nowrap"><input id="setkey" type="password" class="mono" autocomplete="off" spellcheck="false" placeholder="${p.hasKey ? `Saved (${esc(p.keyHint)}). Paste a new key to replace it.` : 'Paste your key'}">${p.hasKey ? '<button class="btn small" id="setkeydel">Remove</button>' : ''}</div>
-      <span class="hint" style="margin:0">${p.encrypted ? 'Stored on this computer, encrypted with your system keychain.' : 'Stored on this computer in a plain settings file, because this system has no keychain to encrypt it with.'}</span></div>` : ''}
+      <span class="hint" style="margin:0">${p.canSaveKey ? 'Stored on this computer, encrypted with your system keychain.' : 'This computer has no keychain to encrypt a key with, so keys can\'t be saved here.'}</span></div>` : ''}
     ${isReady !== false || p.kind === 'api' ? `<div class="models">
       <div class="models-head"><b>Model</b><span class="hint" id="mcount" style="margin:0"></span><span class="spacer"></span>
         <input id="mfilter" placeholder="Filter, or type a model ID" autocomplete="off" spellcheck="false"><button class="btn small" id="mrefresh" title="Ask ${esc(p.name)} for its models again">Refresh</button></div>
       <div class="mlist" id="mlist"></div>
     </div>` : ''}
-    <div class="row"><button class="btn" id="settest"${isReady === false && p.kind === 'cli' ? ' disabled' : ''}>Test</button>${inUse ? '' : `<button class="btn primary" id="setuse"${isReady === false && p.kind === 'cli' ? ' disabled' : ''}>Use for organizing</button>`}<span id="setmsg" class="hint" style="margin:0"></span></div>
+    <div class="row"><button class="btn" id="settest"${isReady === false && p.kind === 'cli' ? ' disabled' : ''}>Test</button>${inUse ? '' : `<button class="btn primary" id="setuse"${isReady === false ? ` disabled title="${p.kind === 'cli' ? 'Install it first' : 'Add a key and choose a model first'}"` : ''}>Use for organizing</button>`}<span id="setmsg" class="hint" style="margin:0"></span></div>
     ${p.kind === 'cli' ? `<p class="hint" style="margin:0">Runs <span class="mono">${esc(p.command)}</span> with tools turned off, in an empty folder. Only app names and their App Store categories are sent, when you press Suggest categories.</p>` : '<p class="hint" style="margin:0">Only app names and their App Store categories are sent, when you press Suggest categories.</p>'}`;
   if($('#mfilter')) $('#mfilter').value = keepFilter;
   bindSettings();
@@ -713,11 +718,16 @@ function bindSettings(){
   ['#seturl','#setkey'].forEach(s => { const el = $(s); if(el) el.onchange = () => saveForm().then(() => { delete setModels[aiSel]; renderSettings(); if(s === '#setkey') setMsg('Key saved.', 'ok'); }).catch(e => setMsg(e.message, 'err')); });
 }
 /** Asks the tool or API for its models, once per provider unless refreshed. */
+const modelReq = {}; // provider id -> number of the newest request, so an older answer can't replace a newer one
 async function loadModels(id, force){
   if(!force && setModels[id]) return renderModelList();
+  const n = modelReq[id] = (modelReq[id] || 0) + 1;
   setModels[id] = {loading:true}; renderModelList();
-  try{ setModels[id] = await api('aiModels', {id}); }
-  catch(e){ setModels[id] = {models:[], from:'builtin', note:e.message}; }
+  let r;
+  try{ r = await api('aiModels', {id}); }
+  catch(e){ r = {models:[], from:'builtin', note:e.message}; }
+  if(modelReq[id] !== n) return;
+  setModels[id] = r;
   if(aiSel === id) renderModelList();
 }
 function renderModelList(){
