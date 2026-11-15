@@ -708,7 +708,11 @@ function bindSettings(){
     $('#mrefresh').onclick = () => loadModels(aiSel, true);
     $('#mlist').onclick = async e => {
       const row = e.target.closest('[data-model]'); if(!row) return;
-      try{ setState = await api('aiSave', {id: aiSel, model: row.dataset.model}); renderModelList(); refreshAIActive(); }
+      try{
+        setState = await api('aiSave', {id: aiSel, model: row.dataset.model});
+        // A model can make the option ready, so redraw it all (and keep the list where it was scrolled).
+        const top = $('#mlist').scrollTop; renderSettings(); if($('#mlist')) $('#mlist').scrollTop = top; refreshAIActive();
+      }
       catch(err){ setMsg(err.message, 'err'); }
     };
     loadModels(aiSel);
