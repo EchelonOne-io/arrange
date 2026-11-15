@@ -51,3 +51,19 @@ jobs:
         env:
           TAG: ${{ github.event.release.tag_name }}
           GH_TOKEN: ${{ github.token }}
+      - name: Publish to the public downloads repo
+        if: github.event_name == 'release'
+        # This repo is private, so the public download link lives in EchelonOne-io/arrange-releases.
+        # RELEASES_TOKEN: a fine-grained token with Contents read and write on that repo.
+        run: |
+          printf '%s\n' "$NOTES" > notes.md
+          if gh release view "$TAG" -R "$PUBLIC_REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg -R "$PUBLIC_REPO" --clobber
+          else
+            gh release create "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg -R "$PUBLIC_REPO" --title "$TAG" --notes-file notes.md
+          fi
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          NOTES: ${{ github.event.release.body }}
+          PUBLIC_REPO: EchelonOne-io/arrange-releases
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}

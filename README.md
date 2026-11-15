@@ -17,7 +17,7 @@ Try it without a device: click **Try it with a sample device** and pick the samp
 
 ## For people using it
 
-1. [Download the Mac app](https://github.com/EchelonOne-io/arrange/releases/latest/download/Arrange.dmg),
+1. [Download the Mac app](https://github.com/EchelonOne-io/arrange-releases/releases/latest/download/Arrange.dmg),
    open the .dmg and drag Arrange to Applications.
 2. Plug the iPad in with a cable and unlock it.
 3. First time only: on a Mac, open Finder, click the iPad in the sidebar and choose **Trust**, then tap
@@ -45,9 +45,12 @@ ARRANGE_POLAR_ORG_ID=<sandbox org id> npm start`.
 
 **Releasing:** on GitHub, go to Releases → **Draft a new release**, create a tag like `v1.2.0`, and
 publish. The workflow in `.github/workflows/build.yml` builds, signs and notarizes the Mac app, uses the tag
-as the app version, and attaches the .dmg to the release in about 5 minutes. The newest release is always at:
+as the app version, and attaches the .dmg to the release in about 5 minutes. Because this repo is private,
+it also publishes the release to the public
+[arrange-releases](https://github.com/EchelonOne-io/arrange-releases) repo, using the `RELEASES_TOKEN` secret
+(a fine-grained token with Contents read and write on arrange-releases). The newest release is always at:
 
-https://github.com/EchelonOne-io/arrange/releases/latest/download/Arrange.dmg
+https://github.com/EchelonOne-io/arrange-releases/releases/latest/download/Arrange.dmg
 
 Running the workflow from the Actions tab builds the same .dmg as a downloadable artifact without
 releasing anything. CI does not build Windows; build that yourself as below.
