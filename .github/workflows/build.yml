@@ -39,7 +39,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installer-mac
-          path: dist/*.dmg
+          # The .zip, .blockmaps and latest-mac.yml are what the in-app updater downloads.
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest-mac.yml
           if-no-files-found: error
       - name: Attach to the release
         if: github.event_name == 'release'
@@ -47,7 +52,7 @@ jobs:
         # /releases/latest/download/Arrange.dmg always serves the newest one.
         run: |
           cp dist/Arrange-*.dmg dist/Arrange.dmg
-          gh release upload "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg --clobber
+          gh release upload "$TAG" dist/Arrange-* dist/Arrange.dmg dist/latest-mac.yml --clobber
         env:
           TAG: ${{ github.event.release.tag_name }}
           GH_TOKEN: ${{ github.token }}
@@ -81,10 +86,10 @@ jobs:
           LATEST=false
           [ "$(GH_TOKEN="$SOURCE_TOKEN" gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" = "$TAG" ] && LATEST=true
           if gh release view "$TAG" -R "$PUBLIC_REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg -R "$PUBLIC_REPO" --clobber
+            gh release upload "$TAG" dist/Arrange-* dist/Arrange.dmg dist/latest-mac.yml -R "$PUBLIC_REPO" --clobber
           else
             # With files attached, gh uploads to a draft and publishes only once they're all there.
-            gh release create "$TAG" dist/Arrange-*.dmg dist/Arrange.dmg -R "$PUBLIC_REPO" \
+            gh release create "$TAG" dist/Arrange-* dist/Arrange.dmg dist/latest-mac.yml -R "$PUBLIC_REPO" \
               --title "$TAG" --notes-file notes.md --prerelease="$PRERELEASE" --latest="$LATEST"
           fi
         env:

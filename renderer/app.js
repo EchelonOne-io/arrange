@@ -438,7 +438,47 @@ $('#termsagree').onclick = async () => { await api('acceptTerms'); $('#termsdlg'
 $('#termsquit').onclick = () => api('quit');
 // Until the terms are accepted, Escape must not dismiss them.
 $('#termsdlg').addEventListener('cancel', e => { if(!$('#termsfirst').hidden) e.preventDefault(); });
-window.organizer.onShow(what => { if(what === 'terms' && !$('#termsdlg').open) showTerms(false); });
+window.organizer.onShow(what => {
+  if(what === 'terms' && !$('#termsdlg').open) showTerms(false);
+  if(what === 'checkUpdates') checkUpdates();
+});
+
+// ---------- updates ----------
+let updateAsked = false; // the person asked, so say how the check turned out
+let updateNoted = null;   // version we've already told them about
+function showUpdate(u){
+  const msg = {
+    checking: 'Checking for updates…',
+    downloading: `Downloading Arrange ${u.version}… ${u.percent || 0}%`,
+    ready: `Arrange ${u.version} is ready. Restart to update.`,
+    current: 'You have the latest version.',
+    error: u.message,
+    dev: 'Updates are only available in the installed app.',
+  }[u.state];
+  if(msg) $('#updstatus').textContent = msg;
+  $('#updbtn').hidden = u.state !== 'ready';
+  if(u.state === 'ready') $('#updbtn').textContent = `Restart to Update to ${u.version}`;
+  if(u.state === 'ready' && updateNoted !== u.version){
+    updateNoted = u.version; updateAsked = false;
+    $('#updnotetext').textContent = `Version ${u.version} has downloaded. Restart Arrange to start using it, or it will install the next time you quit.`;
+    $('#updnote').hidden = false;
+  }
+  if(updateAsked && ['current','error','dev'].includes(u.state)){ updateAsked = false; toast(msg, u.state === 'error' ? 'err' : 'ok'); }
+  else if(updateAsked && u.state === 'downloading' && !u.percent) toast(msg);
+}
+async function checkUpdates(){
+  updateAsked = true;
+  try{ showUpdate(await api('checkUpdates')); }catch(e){ updateAsked = false; toast(e.message, 'err'); }
+}
+$('#updcheck').onclick = checkUpdates;
+$('#updlater').onclick = () => { $('#updnote').hidden = true; };
+$('#updnow').onclick = $('#updbtn').onclick = async () => {
+  if(dirty && !confirm('Restart to update? Changes you haven\'t applied will be lost.')) return;
+  dirty = false;
+  await api('installUpdate');
+};
+window.organizer.onUpdate(showUpdate);
+api('update').then(showUpdate).catch(() => {});
 api('terms').then(t => { if(!t.accepted) showTerms(true); }).catch(() => {});
 
 resetProfile();

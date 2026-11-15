@@ -24,6 +24,9 @@ Try it without a device: click **Try it with a sample device** and pick the samp
    **Trust** on the iPad. On Windows, install the **Apple Devices** app from the Microsoft Store first.
 4. The Home Screen appears. Rearrange, then press **Apply to iPad**.
 
+Arrange updates itself: new versions download in the background, and a notice asks you to restart
+(**Help › Check for Updates** checks right away).
+
 Rearranging and the sample devices are free. Applying to your own device needs a license key: click
 **Buy / Enter key**, buy one, and paste the key from your purchase email.
 
