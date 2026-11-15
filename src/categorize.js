@@ -78,8 +78,12 @@ Answer with JSON only, using the app numbers:
 
 function extractJSON(text) {
   const s = String(text || '').replace(/```(?:json)?/gi, '');
-  const start = s.indexOf('{');
-  const end = s.lastIndexOf('}');
+  // The answer may be {"categories": [...]} or just the [...] list.
+  const obj = s.indexOf('{');
+  const arr = s.indexOf('[');
+  const [open, close] = arr >= 0 && (obj < 0 || arr < obj) ? ['[', ']'] : ['{', '}'];
+  const start = s.indexOf(open);
+  const end = s.lastIndexOf(close);
   if (start < 0 || end <= start) throw new Error('The AI did not answer with categories. Try again, or try another model.');
   try { return JSON.parse(s.slice(start, end + 1)); } catch { throw new Error('The AI answered with something that could not be read. Try again.'); }
 }

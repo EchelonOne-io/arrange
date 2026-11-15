@@ -440,13 +440,14 @@ function arrangeByCategory(groups, mode, includeFolders){
   const uidsById = {};
   for(const u of moving) (uidsById[nodes[u].id] ||= []).push(u);
   // What stays: widgets, other items, and folders that aren't being emptied, in their current order.
-  const keep = [];
-  for(const u of [...S.pages.flat(), ...S.shelf]){
+  // Kept page by page, so a widget on page 3 stays apart from one on page 1 instead of being merged forward.
+  const kept = u => {
     const n = nodes[u];
-    if(moving.has(u)) continue;
-    if(n.kind === 'folder' && includeFolders){ n.pages.forEach(p => { for(let i=p.length-1;i>=0;i--) if(moving.has(p[i])) p.splice(i,1); }); if(!n.pages.flat().length) continue; }
-    keep.push(u);
-  }
+    if(moving.has(u)) return false;
+    if(n.kind === 'folder' && includeFolders){ n.pages.forEach(p => { for(let i=p.length-1;i>=0;i--) if(moving.has(p[i])) p.splice(i,1); }); if(!n.pages.flat().length) return false; }
+    return true;
+  };
+  const keepPages = [...S.pages, S.shelf].map(p => p.filter(kept)).filter(p => p.length);
   // Folders the person had are now empty; drop them from every list (and from their parent folder pages).
   for(const u of moving) removeEverywhere(u);
   const placed = new Set();
@@ -459,7 +460,7 @@ function arrangeByCategory(groups, mode, includeFolders){
 
   const pages = []; const names = [];
   const addPages = (items, name) => packPages(items).forEach(p => { if(p.length){ pages.push(p); names.push(name); } });
-  if(keep.length) addPages(keep, '');
+  keepPages.forEach(p => addPages(p, ''));
   if(mode === 'folders'){
     const tiles = sections.map(s => {
       if(s.uids.length < 2) return s.uids[0];
@@ -665,7 +666,7 @@ function renderSettings(){
     ${p.customUrl ? `<div class="field"><label for="seturl">Server address</label><input id="seturl" class="mono" value="${esc(p.baseUrl)}" placeholder="http://localhost:11434/v1"></div>` : ''}
     ${p.kind === 'api' ? `<div class="field"><label for="setkey">API key${p.keyOptional ? ' <span class="hint" style="font-weight:400">(if the server needs one)</span>' : ''}</label>
       <div class="row" style="flex-wrap:nowrap"><input id="setkey" type="password" class="mono" autocomplete="off" spellcheck="false" placeholder="${p.hasKey ? `Saved (${esc(p.keyHint)}). Paste a new key to replace it.` : 'Paste your key'}">${p.hasKey ? '<button class="btn small" id="setkeydel">Remove</button>' : ''}</div>
-      <span class="hint" style="margin:0">Stored on this computer, encrypted with your system keychain.</span></div>` : ''}
+      <span class="hint" style="margin:0">${p.encrypted ? 'Stored on this computer, encrypted with your system keychain.' : 'Stored on this computer in a plain settings file, because this system has no keychain to encrypt it with.'}</span></div>` : ''}
     ${isReady !== false || p.kind === 'api' ? `<div class="models">
       <div class="models-head"><b>Model</b><span class="hint" id="mcount" style="margin:0"></span><span class="spacer"></span>
         <input id="mfilter" placeholder="Filter, or type a model ID" autocomplete="off" spellcheck="false"><button class="btn small" id="mrefresh" title="Ask ${esc(p.name)} for its models again">Refresh</button></div>

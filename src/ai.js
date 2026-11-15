@@ -22,6 +22,14 @@ const NOT_CHAT = /embed|whisper|tts|dall-e|moderation|image|audio|realtime|trans
 
 const SYSTEM = 'You sort iPhone and iPad apps into Home Screen categories. Reply with JSON only, no other text.';
 
+// Model IDs only ever use these characters. Anything else is refused, because on Windows the
+// command goes through the shell, where quotes and & | < > could run other commands.
+const SAFE_MODEL = /^[\w.\/:@~#+\[\]-]*$/;
+const checkModel = (m) => {
+  if (!SAFE_MODEL.test(String(m || ''))) throw new Error('That model name has characters a model ID never uses. Pick one from the list.');
+  return m;
+};
+
 const stripAnsi = (s) => String(s).replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '');
 
 const PROVIDERS = [
@@ -193,6 +201,7 @@ class AI {
           id: p.id, kind: p.kind, name: p.name, blurb: p.blurb, site: p.site, models: p.models, command: p.command || null,
           customUrl: !!p.customUrl, keyOptional: !!p.keyOptional,
           model: saved.model ?? p.defaultModel, baseUrl: saved.baseUrl || p.baseUrl || '',
+          encrypted: !!this.crypt,
           hasKey: !!this._key(saved), keyHint: this._key(saved) ? `…${this._key(saved).slice(-4)}` : '',
         };
       }),
@@ -205,7 +214,7 @@ class AI {
     if (!p) throw new Error('Unknown AI provider.');
     const s = this._read();
     const saved = { ...(s.providers[id] || {}) };
-    if (model !== undefined) saved.model = String(model).trim();
+    if (model !== undefined) saved.model = checkModel(String(model).trim());
     if (baseUrl !== undefined && p.customUrl) saved.baseUrl = String(baseUrl).trim().replace(/\/+$/, '');
     if (apiKey !== undefined) {
       const k = String(apiKey).trim();
@@ -302,7 +311,7 @@ class AI {
       const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'arrange-ai-'));
       try {
         const input = c.p.id === 'claude-code' ? prompt : `${SYSTEM}\n\n${prompt}`;
-        const r = await exec(c.p.command, c.p.args(c.model), { input, timeout, cwd });
+        const r = await exec(c.p.command, c.p.args(checkModel(c.model)), { input, timeout, cwd });
         if (r.code !== 0) throw new Error(`${c.p.name} stopped with an error: ${lastLines(r.err || r.out) || `exit code ${r.code}`}`);
         const text = c.p.parse ? c.p.parse(r.out) : stripAnsi(r.out).trim();
         if (!text) throw new Error(`${c.p.name} sent back an empty answer.`);

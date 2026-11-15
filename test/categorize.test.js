@@ -164,3 +164,22 @@ test('API model lists: Anthropic names, OpenAI without non-chat models, and a bu
   ai.save({ id: 'openai', apiKey: 'k' });
   assert.deepStrictEqual((await ai.models('openai')).models.map((m) => m.id), ['gpt-6-sol']);
 });
+
+test('an answer that is just the list of categories is read too', () => {
+  const groups = readAnswer(APPS, 'Here you go: [{"name":"Games","apps":[2,3]},{"name":"Rest","apps":[1,4,5]}]');
+  assert.deepStrictEqual(groups.map((g) => g.name), ['Games', 'Rest']);
+});
+
+test('model names that could break out of a Windows command are refused', async () => {
+  const ai = new AI({ file: path.join(tmp(), 'ai.json') });
+  assert.throws(() => ai.save({ id: 'codex', model: 'gpt-5" & calc & "' }), /never uses/);
+  assert.doesNotThrow(() => ai.save({ id: 'opencode', model: 'openrouter/~anthropic/claude-sonnet-latest' }));
+  assert.doesNotThrow(() => ai.save({ id: 'cursor-agent', model: 'gpt-5[high]' }));
+});
+
+test('settings say whether keys are encrypted', () => {
+  const plain = new AI({ file: path.join(tmp(), 'ai.json') });
+  assert.strictEqual(plain.settings().providers[0].encrypted, false);
+  const enc = new AI({ file: path.join(tmp(), 'ai.json'), crypt: { encrypt: (x) => x, decrypt: (x) => x } });
+  assert.strictEqual(enc.settings().providers[0].encrypted, true);
+});
